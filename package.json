@@ -1,0 +1,11 @@
+{
+  "name": "auditoria-monorepo",
+  "private": "true",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspaces foreach -pi run dev"
+  }
+}

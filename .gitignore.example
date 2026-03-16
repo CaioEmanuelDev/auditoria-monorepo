@@ -1,0 +1,16 @@
+# Exemplo de .gitignore para sub-pacotes
+# Copie este arquivo como .gitignore se houver necessidade de regras específicas
+
+# Ignora builds locais do pacote
+/dist
+/lib
+
+# Ignora dependências instaladas localmente (caso não use hoisting do Yarn)
+node_modules/
+
+# Logs de teste específicos do pacote
+test-results/
+coverage/
+
+# Arquivos temporários de build do TypeScript
+tsbuildinfo
