@@ -1,175 +1,371 @@
-Você é um engenheiro de software sênior especializado em Node.js, Clean Architecture, testes automatizados e design de bibliotecas.
+Você é um engenheiro de software sênior especializado em:
 
-Vou fornecer uma especificação técnica de um pacote Node.js.
+* Node.js
+* Clean Architecture
+* Test Driven Development (TDD)
+* PostgreSQL (nível avançado)
+* Sistemas de alta escala (high throughput)
+* Observabilidade e logging distribuído
 
-Sua tarefa NÃO é implementar o pacote ainda.
+Vou fornecer uma especificação técnica (Audit Logger v4).
 
-Primeiro você deve usar TDD (Test Driven Development) para tornar a especificação mais precisa.
-
-PROCESSO OBRIGATÓRIO:
-
-ETAPA 1 — ANÁLISE DA ESPECIFICAÇÃO
-
-Leia cuidadosamente a especificação fornecida.
-
-Identifique:
-
-- comportamentos implícitos
-- regras de negócio
-- fluxos obrigatórios
-- casos de erro
-- dependências externas
-- limites de responsabilidade entre camadas
-
-Se algo estiver ambíguo, assuma o comportamento mais seguro e documente.
+⚠️ IMPORTANTE:
+Você NÃO deve implementar o sistema ainda.
+Sua tarefa é usar TDD para REFINAR, VALIDAR e COMPLETAR a especificação.
 
 ---
 
-ETAPA 2 — DEFINIÇÃO DE TESTES
+# 🎯 OBJETIVO
 
-Crie uma suíte completa de testes unitários e de integração que descrevam o comportamento esperado do sistema.
+Transformar a especificação em um contrato **100% testável, explícito e pronto para implementação**, garantindo:
 
-Os testes devem cobrir:
-
-DOMÍNIO
-
-- criação da entidade AuditLog
-- validação de campos obrigatórios
-- regras de severidade baseadas em status HTTP
-- anonimização de IP
-- rejeição de dados inválidos
-
-UTILITÁRIOS
-
-- sanitização de dados sensíveis
-- mascaramento de password
-- mascaramento de tokens
-- extração de IP
-- fallback para UNKNOWN
-
-USE CASE
-
-- SaveAuditLogUseCase salva logs corretamente
-- SaveAuditLogUseCase chama repositório correto
-- comportamento quando repositório falha
-
-INFRASTRUCTURE
-
-- criação automática da tabela audit_logs
-- conexão com banco usando .env
-- fallback para arquivo quando banco falha
-
-MIDDLEWARE
-
-- captura início da requisição
-- captura final da requisição
-- coleta de dados HTTP
-- envio para use case
-
-RESILIÊNCIA
-
-- falha do banco não quebra a API
-- fallback é acionado corretamente
-- logs continuam sendo gerados
+* Alta performance
+* Resiliência
+* Escalabilidade
+* Clareza de comportamento
 
 ---
 
-ETAPA 3 — FERRAMENTA DE TESTE
+# 🧪 PROCESSO OBRIGATÓRIO
+
+---
+
+# ETAPA 1 — ANÁLISE PROFUNDA DA ESPECIFICAÇÃO
+
+Leia toda a spec-v4 e identifique:
+
+## 🔍 Comportamentos implícitos
+
+* O que o sistema FAZ mas não está explicitamente definido
+
+## 📏 Regras de negócio
+
+* Classificação de severidade (INFO/WARN/ERROR)
+* Regras de anonimização
+* Regras de agregação
+
+## 🔄 Fluxos obrigatórios
+
+* Request → Middleware → Buffer → Worker → DB
+* Fallback em falha
+* Jobs de agregação
+
+## ❌ Casos de erro
+
+* Falha no banco
+* Falha no worker
+* Buffer overflow
+* Partição inexistente
+
+## 🔌 Dependências externas
+
+* PostgreSQL
+* Variáveis de ambiente (.env)
+
+## 🧱 Limites entre camadas
+
+* Domain
+* Application
+* Infrastructure
+* Interface (middleware)
+
+Se houver ambiguidade:
+👉 Assuma o comportamento mais seguro
+👉 Documente explicitamente
+
+---
+
+# ETAPA 2 — DEFINIÇÃO COMPLETA DE TESTES
+
+Crie uma suíte COMPLETA cobrindo:
+
+---
+
+## 🧠 DOMAIN
+
+* criação da entidade AuditLog
+* validação de campos obrigatórios
+* validação de timestamp
+* geração de `anonymous_id`
+* regras de severidade baseadas em status HTTP:
+
+  * 2xx → INFO
+  * 4xx → WARN
+  * 5xx → ERROR
+* rejeição de dados inválidos
+* normalização de campos
+
+---
+
+## 🧰 UTILS
+
+* sanitização de dados sensíveis (deep sanitize)
+* mascaramento de:
+
+  * password
+  * token
+  * authorization headers
+* hash de anonymous_id
+* extração de IP:
+
+  * headers (x-forwarded-for)
+  * fallback para socket
+  * fallback "UNKNOWN"
+* truncamento de payloads grandes
+
+---
+
+## ⚙️ APPLICATION (USE CASE)
+
+### SaveAuditLogUseCase
+
+* adiciona log ao buffer (NÃO salva direto)
+* não bloqueia execução
+* não lança erro para camada superior
+
+### Buffer
+
+* adiciona logs corretamente
+* respeita limite de batch (ex: 500)
+* dispara flush quando atinge limite
+* mantém ordem de inserção
+
+### BatchWorker
+
+* executa insert em lote
+* limpa buffer após flush
+* retry em falha
+* fallback quando DB falha
+
+---
+
+## 🏗️ INFRASTRUCTURE (PostgreSQL)
+
+* conexão via .env
+* criação automática da tabela particionada
+* criação automática de partições
+* insert em batch
+* uso correto de JSONB
+* índices aplicados corretamente
+
+---
+
+## 🧱 PARTITION MANAGER
+
+* cria partição do dia atual
+* cria partição futura
+* remove partições > 90 dias
+* não recria partições existentes
+
+---
+
+## 📊 AGGREGATION
+
+### Daily Summary
+
+* calcula corretamente:
+
+  * total_requests
+  * avg_duration
+  * max_duration
+  * errors
+  * unauthorized
+* gera JSONB de insights
+
+### Monthly Summary
+
+* agrega corretamente dados diários
+
+---
+
+## 🛡️ ANOMALY DETECTION
+
+* detecta:
+
+  * força bruta (401/403 por IP)
+  * rate abuse (requests por minuto)
+  * pico de erro (5xx)
+* salva no JSONB
+
+---
+
+## 🌐 MIDDLEWARE
+
+* captura início da request
+* captura fim da request
+* calcula duration
+* coleta:
+
+  * headers
+  * body
+  * status_code
+* envia para use case (fire-and-forget)
+
+---
+
+## 🔥 RESILIÊNCIA
+
+* falha do banco NÃO quebra API
+* fallback para arquivo funciona
+* erro no worker não afeta requests
+* sistema continua operando sob falha parcial
+
+---
+
+## ⚠️ CONCORRÊNCIA / ALTA CARGA
+
+* múltiplas requests simultâneas
+* buffer thread-safe (simulado)
+* flush concorrente não duplica dados
+
+---
+
+# ETAPA 3 — FERRAMENTA DE TESTE
 
 Use:
 
-- Jest ou Vitest
+* Vitest (preferencial) ou Jest
 
-Formato esperado:
+Estrutura:
 
+```txt
 tests/
-domain/
-application/
-utils/
-integration/
-middleware/
-
-Os testes devem ser escritos em JavaScript.
-
----
-
-ETAPA 4 — TESTES COMO DOCUMENTAÇÃO
-
-Cada teste deve:
-
-- explicar claramente o comportamento esperado
-- ter nomes descritivos
-- seguir padrão AAA
-
-Arrange
-Act
-Assert
+  domain/
+  application/
+  utils/
+  infrastructure/
+  integration/
+  middleware/
+  performance/
+```
 
 ---
 
-ETAPA 5 — COBERTURA DE EDGE CASES
+# ETAPA 4 — PADRÃO DOS TESTES
 
-Inclua testes para:
+Todos os testes devem:
 
-- body vazio
-- headers ausentes
-- request sem IP
-- erro de timeout no banco
-- erro de escrita em arquivo
-- dados sensíveis aninhados
+* seguir AAA (Arrange / Act / Assert)
+* nomes descritivos
+* explicar comportamento esperado
+* evitar testes genéricos
 
 ---
 
-ETAPA 6 — VALIDAÇÃO DA ESPECIFICAÇÃO
+# ETAPA 5 — EDGE CASES (OBRIGATÓRIO)
 
-Após gerar os testes, analise:
+Cobrir:
 
-- se a especificação original é suficiente para passar nos testes
-- quais partes estão ambíguas
-- quais comportamentos precisam ser definidos explicitamente
-
-Liste todas as melhorias necessárias na especificação.
-
----
-
-ETAPA 7 — GERAR SPEC V2
-
-Com base nos testes criados, gere uma nova versão da especificação:
-
-# spec-v2.md
-
-A nova especificação deve:
-
-- eliminar ambiguidades
-- incluir contratos explícitos
-- definir estrutura de dados completa
-- definir schema da tabela audit_logs
-- definir interface dos repositórios
-- definir estrutura do payload de log
-- definir comportamento do middleware
-- definir estratégia de fallback
-
-Inclua:
-
-- modelo de dados do AuditLog
-- formato JSON do log
-- SQL da tabela audit_logs
-- interface do repository
-- interface do logger
-- exemplos de logs reais
+* body vazio
+* headers ausentes
+* request sem IP
+* payload gigante
+* JSON inválido
+* timeout no banco
+* falha no insert batch
+* partição inexistente
+* tentativa de inserir log fora do range
+* falha ao dropar partição
+* buffer overflow
 
 ---
 
-ETAPA 8 — RESULTADO FINAL
+# ETAPA 6 — VALIDAÇÃO DA SPEC
 
-Retorne nesta ordem:
+Após criar os testes:
 
-1️⃣ Estrutura da suíte de testes  
-2️⃣ Código completo dos testes  
-3️⃣ Lista de ambiguidades encontradas  
-4️⃣ Melhorias propostas na especificação  
-5️⃣ Novo documento **spec-v2.md**
+Liste:
 
-NÃO implemente o pacote ainda.
+## ❗ Ambiguidades
 
-A implementação só deve acontecer após a aprovação da spec-v2.
+## ⚠️ Comportamentos não definidos
+
+## 🔧 Problemas de design
+
+## 🚨 Riscos de produção
+
+---
+
+# ETAPA 7 — MELHORIAS NA ESPECIFICAÇÃO
+
+Proponha melhorias como:
+
+* contratos explícitos
+* limites claros
+* estrutura de dados completa
+* decisões de performance
+* decisões de fallback
+
+---
+
+# ETAPA 8 — GERAR spec-v4.md (VERSÃO FINAL)
+
+Gerar uma nova especificação COMPLETA e MELHORADA contendo:
+
+## 📦 Estrutura obrigatória
+
+* Modelo da entidade AuditLog
+* Schema SQL (com PARTITIONING)
+* Estratégia de índices
+* Estrutura do buffer
+* Fluxo do worker
+* Interface dos repositórios
+* Interface do use case
+* Interface do middleware
+* Estratégia de fallback
+* Estratégia de agregação
+* Estrutura JSONB de insights
+* Estratégia de retenção (TTL)
+* Detecção de anomalias
+* Performance esperada
+
+## 📄 Incluir
+
+* exemplos reais de logs
+* exemplos JSON
+* SQL completo
+* pseudo-código dos fluxos críticos
+
+---
+
+# 📤 RESULTADO FINAL
+
+Retorne EXATAMENTE nesta ordem:
+
+1️⃣ Estrutura da suíte de testes
+2️⃣ Código completo dos testes
+3️⃣ Lista de ambiguidades encontradas
+4️⃣ Melhorias propostas na especificação
+5️⃣ Documento final **spec-v4.md**
+
+---
+
+# 🚫 REGRAS IMPORTANTES
+
+* NÃO implementar o sistema
+* NÃO pular etapas
+* NÃO simplificar testes
+* NÃO omitir edge cases
+* NÃO responder de forma genérica
+
+---
+
+# 📎 BASE
+
+Use como base a especificação fornecida abaixo:
+
+[COLE AQUI SUA spec-v4 ATUAL]
+
+---
+
+# 🎯 RESULTADO ESPERADO
+
+Uma especificação:
+
+* testável
+* explícita
+* sem ambiguidades
+* pronta para implementação real
+* preparada para alta escala
+
+Seja técnico, direto e detalhado.

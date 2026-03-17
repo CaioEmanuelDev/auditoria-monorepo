@@ -1,0 +1,35 @@
+{
+    "name": "@packages/audit-logger",
+    "version": "0.1.0",
+    "description": "Middleware de auditoria plug-and-play para Node.js (PostgreSQL + High Performance)",
+    "main": "src/index.js",
+    "types": "src/index.d.ts",
+    "scripts": {
+        "test": "vitest",
+        "test:watch": "vitest --watch",
+        "test:coverage": "vitest --coverage",
+        "dev": "node src/index.js"
+    },
+    "keywords": [
+        "audit",
+        "logging",
+        "postgresql",
+        "middleware",
+        "express",
+        "fastify"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "postgresql": "^0.0.1",
+        "uuid": "^9.0.0",
+        "winston": "^3.11.0",
+        "dotenv": "^16.3.1"
+    },
+    "devDependencies": {
+        "vitest": "^1.0.0",
+        "@vitest/ui": "^1.0.0",
+        "jest": "^29.7.0",
+        "@testing-library/jest-dom": "^6.1.5"
+    }
+}
