@@ -1,35 +1,25 @@
 {
-    "name": "@packages/audit-logger",
-    "version": "0.1.0",
-    "description": "Middleware de auditoria plug-and-play para Node.js (PostgreSQL + High Performance)",
-    "main": "src/index.js",
-    "type": "module",
-    "types": "src/index.d.ts",
-    "scripts": {
-        "test": "vitest",
-        "test:ui": "vitest --ui",
-        "test:coverage": "vitest --coverage",
-        "dev": "node --watch src/index.js",
-        "lint": "eslint src tests"
+    "name": "@internal/audit-logger",
+    "version": "1.0.0",
+    "description": "Middleware de auditoria HTTP plug-and-play para Node.js",
+    "main": "index.js",
+    "exports": {
+        ".": "./index.js",
+        "./express": "./src/adapters/middlewares/ExpressMiddleware.js",
+        "./fastify": "./src/adapters/middlewares/FastifyMiddleware.js"
     },
-    "keywords": [
-        "audit",
-        "logging",
-        "postgresql",
-        "middleware",
-        "express",
-        "fastify"
-    ],
-    "author": "",
-    "license": "ISC",
+    "engines": {
+        "node": ">=20.0.0"
+    },
     "dependencies": {
-        "dotenv": "^17.3.1",
-        "pg": "^8.20.0"
+        "pg": "^8.11.0",
+        "winston": "^3.11.0"
     },
     "devDependencies": {
-        "@vitest/ui": "^4.1.0",
-        "nock": "^14.0.11",
-        "sinon": "^21.0.3",
-        "vitest": "^4.1.0"
+        "express": "^4.18.0"
+    },
+    "scripts": {
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage"
     }
 }

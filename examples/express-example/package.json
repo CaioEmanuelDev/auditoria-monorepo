@@ -1,0 +1,17 @@
+{
+    "name": "express-example",
+    "version": "1.0.0",
+    "description": "Exemplo de uso do pacote audit-logger com Express",
+    "license": "ISC",
+    "author": "Caio Emanuel",
+    "type": "commonjs",
+    "main": "server.js",
+    "scripts": {
+        "test": "node --watch ./server.js",
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "@internal/audit-logger": "workspace:*",
+        "express": "^4.18.0"
+    }
+}

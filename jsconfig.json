@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "checkJs": true,
+        "strict": false,
+        "target": "ES2022",
+        "module": "commonjs"
+    },
+    "include": ["packages/**/*", "examples/**/*", "apps/**/*"]
+}

@@ -1,11 +1,23 @@
 {
-  "name": "auditoria-monorepo",
+  "name": "audit-monorepo",
   "private": "true",
   "workspaces": [
     "packages/*",
+    "examples/*",
     "apps/*"
   ],
   "scripts": {
-    "dev": "yarn workspaces foreach -pi run dev"
+    "test": "vitest run --workspace vitest.workspace.js",
+    "test:watch": "vitest --workspace vitest.workspace.js",
+    "lint": "eslint package/*/src/**/*.js",
+    "build": "echo 'JS puro, sem build necessário'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.0.0",
+    "vitest": "^1.0.0"
   }
 }
