@@ -1,10 +1,11 @@
 # 📘 Guia Completo de Implementação — `@internal/audit-logger`
+
 ### Da Especificação ao MVP — Uma Jornada Educacional para Desenvolvedores
 
 > **Autor:** Caio Emanuel  
 > **Base:** spec-v4-final.md  
 > **Estrutura:** Monorepo como lib interna plug-and-play  
-> **Runtime:** Node.js v20+ | JavaScript puro + JSDoc | PostgreSQL  
+> **Runtime:** Node.js v20+ | JavaScript puro + JSDoc | PostgreSQL
 
 ---
 
@@ -41,18 +42,19 @@ Domínio não conhece Express. Aplicação não conhece PostgreSQL.
 ```
 
 **Estude antes de implementar:**
+
 - [Clean Architecture — Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - Conceito de **Ports & Adapters** (Hexagonal Architecture)
 - O que é uma **Interface** (contrato) versus uma **Implementação**
 
 **As 4 camadas do projeto:**
 
-| Camada | Pasta | Responsabilidade | Conhece quem? |
-|--------|-------|-----------------|---------------|
-| Domain | `src/domain/` | Regras de negócio puras | Ninguém |
-| Application | `src/application/` | Orquestra casos de uso | Domain |
-| Infrastructure | `src/infrastructure/` | Banco, arquivos, rede | Application + Domain |
-| Adapters | `src/adapters/` | Express, Fastify | Application |
+| Camada         | Pasta                 | Responsabilidade        | Conhece quem?        |
+| -------------- | --------------------- | ----------------------- | -------------------- |
+| Domain         | `src/domain/`         | Regras de negócio puras | Ninguém              |
+| Application    | `src/application/`    | Orquestra casos de uso  | Domain               |
+| Infrastructure | `src/infrastructure/` | Banco, arquivos, rede   | Application + Domain |
+| Adapters       | `src/adapters/`       | Express, Fastify        | Application          |
 
 ---
 
@@ -64,19 +66,20 @@ Domínio não conhece Express. Aplicação não conhece PostgreSQL.
 
 ```javascript
 // ❌ ERRADO — bloqueia a requisição
-res.on('finish', async () => {
+res.on("finish", async () => {
   await saveLog(data); // ← usuário espera isso terminar
   next();
 });
 
 // ✅ CORRETO — fire-and-forget
-res.on('finish', () => {
-  saveLog(data).catch(err => console.error(err)); // ← dispara e esquece
+res.on("finish", () => {
+  saveLog(data).catch((err) => console.error(err)); // ← dispara e esquece
   // next() já foi chamado antes, usuário já recebeu resposta
 });
 ```
 
 **Estude antes de implementar:**
+
 - Event Loop do Node.js (como `async` funciona)
 - `Promise.catch()` vs `try/catch` em código assíncrono
 - Por que `.catch()` é obrigatório em fire-and-forget (evitar `UnhandledPromiseRejection`)
@@ -90,24 +93,25 @@ res.on('finish', () => {
 **Por que usamos aqui:** O `AuditBuffer` acumula logs e, quando cheio (500 items) ou após 1 segundo, **emite um evento `'flush'`**. O `BatchWorker` escuta esse evento e persiste no banco.
 
 ```javascript
-const EventEmitter = require('node:events');
+const EventEmitter = require("node:events");
 
 class AuditBuffer extends EventEmitter {
   add(log) {
     this._items.push(log);
     if (this._items.length >= 500) {
-      this.emit('flush', this._items.splice(0)); // ← dispara evento
+      this.emit("flush", this._items.splice(0)); // ← dispara evento
     }
   }
 }
 
 // Em outro lugar:
-buffer.on('flush', (batch) => {
+buffer.on("flush", (batch) => {
   worker.processBatch(batch); // ← reage ao evento
 });
 ```
 
 **Estude antes de implementar:**
+
 - `node:events` — `EventEmitter`, `.on()`, `.emit()`, `.once()`
 - Observer Pattern (o padrão de design por trás dos eventos)
 - Por que `splice(0)` cria uma cópia e limpa o array original ao mesmo tempo
@@ -136,6 +140,7 @@ FOR VALUES FROM ('2026-03-30') TO ('2026-03-31');
 ```
 
 **Estude antes de implementar:**
+
 - PostgreSQL Partitioning (docs oficiais)
 - Por que a PK precisa incluir a coluna de partição
 - `PARTITION BY RANGE` vs `PARTITION BY LIST` vs `PARTITION BY HASH`
@@ -168,6 +173,7 @@ module.exports = PostgreSQLConnection;
 ```
 
 **Estude antes de implementar:**
+
 - Por que `require()` do Node.js é um singleton por natureza (module cache)
 - Connection Pool: `pg` (node-postgres) — `min`, `max`, `idleTimeoutMillis`
 - Diferença entre criar uma `Connection` e pegar uma do `Pool`
@@ -182,13 +188,14 @@ module.exports = PostgreSQLConnection;
 
 ```javascript
 // Node.js v20+ tem crypto.randomUUID() nativo — sem dependência!
-const { randomUUID } = require('node:crypto');
+const { randomUUID } = require("node:crypto");
 
 const requestId = randomUUID();
 // → "550e8400-e29b-41d4-a716-446655440000"
 ```
 
 **Estude antes de implementar:**
+
 - RFC 4122 — o padrão UUID
 - Por que `crypto.randomUUID()` é preferível a `uuid` package no Node.js v20+
 - Formato: `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` (o "4" identifica v4)
@@ -202,16 +209,15 @@ const requestId = randomUUID();
 **Por que usamos aqui:** O `anonymous_id` é `SHA256(ip + userAgent)`. Isso permite detectar padrões de um mesmo usuário anônimo sem armazenar dados pessoais diretamente (compliance LGPD/GDPR).
 
 ```javascript
-const { createHash } = require('node:crypto');
+const { createHash } = require("node:crypto");
 
 function generateAnonymousId(ip, userAgent) {
-  return createHash('sha256')
-    .update(`${ip}${userAgent}`)
-    .digest('hex'); // → 64 caracteres hexadecimais
+  return createHash("sha256").update(`${ip}${userAgent}`).digest("hex"); // → 64 caracteres hexadecimais
 }
 ```
 
 **Estude antes de implementar:**
+
 - Diferença entre hash e criptografia (hash é unidirecional)
 - Por que SHA-256 é preferível a MD5 (colisões conhecidas em MD5)
 - LGPD/GDPR: por que anonimizar dados de usuário em logs
@@ -234,6 +240,7 @@ SELECT * FROM audit_logs WHERE (body->'user'->>'id') IS NOT NULL;
 ```
 
 **Estude antes de implementar:**
+
 - `JSON` vs `JSONB` no PostgreSQL (JSONB é indexável e mais eficiente)
 - Operadores: `->` (retorna JSON), `->>` (retorna text), `#>` (path)
 - GIN index em JSONB para buscas rápidas dentro do payload
@@ -253,6 +260,7 @@ SELECT * FROM audit_logs WHERE (body->'user'->>'id') IS NOT NULL;
 **Por que aqui:** O `audit-logger` precisa funcionar como uma **lib interna** (`@internal/audit-logger`) que qualquer serviço da empresa pode instalar. Com monorepo, o código fica junto, mas o consumo é como um pacote externo.
 
 **Estude antes de implementar:**
+
 - NPM Workspaces (nativo no npm v7+)
 - Conceito de `workspace:*` no `package.json`
 - Por que `@internal/` como namespace de pacotes privados
@@ -345,10 +353,7 @@ audit-monorepo/                     ← Raiz do repositório
 {
   "name": "audit-monorepo",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "examples/*"
-  ],
+  "workspaces": ["packages/*", "examples/*"],
   "scripts": {
     "test": "vitest run --workspace vitest.workspace.js",
     "test:watch": "vitest --workspace vitest.workspace.js",
@@ -401,11 +406,9 @@ audit-monorepo/                     ← Raiz do repositório
 
 ```javascript
 // Como o Vitest sabe quais pacotes testar no monorepo
-import { defineWorkspace } from 'vitest/config';
+import { defineWorkspace } from "vitest/config";
 
-export default defineWorkspace([
-  'packages/*/vitest.config.js'
-]);
+export default defineWorkspace(["packages/*/vitest.config.js"]);
 ```
 
 ### Como um serviço consome o pacote
@@ -423,8 +426,8 @@ export default defineWorkspace([
 
 ```javascript
 // examples/express-example/server.js
-const express = require('express');
-const { Audit } = require('@internal/audit-logger'); // ← importa como lib!
+const express = require("express");
+const { Audit } = require("@internal/audit-logger"); // ← importa como lib!
 
 const app = express();
 
@@ -448,6 +451,7 @@ main();
 ## 3.1 O que é JSDoc?
 
 JSDoc é um sistema de comentários estruturados que seu editor (VS Code, WebStorm) consegue interpretar para fornecer:
+
 - Autocomplete com tipos
 - Warnings quando você passa o tipo errado
 - Documentação inline ao passar o mouse sobre funções
@@ -672,17 +676,17 @@ async function save(log, pool) { ... }
 ```javascript
 /**
  * @fileoverview Classificador de severidade para logs de auditoria.
- * 
+ *
  * Determina a severidade (INFO/WARN/ERROR) baseado no código de status HTTP.
  * Segue a convenção da spec-v4: 2xx/3xx = INFO, 4xx = WARN, 5xx = ERROR.
- * 
+ *
  * @module SeverityClassifier
  * @author Time de Plataforma
  * @version 1.0.0
  * @since 2026-03-30
  */
 
-'use strict';
+"use strict";
 
 /**
  * @typedef {'INFO'|'WARN'|'ERROR'} Severity
@@ -705,11 +709,13 @@ function classify(statusCode) {
     throw new TypeError(`statusCode deve ser inteiro, recebido: ${statusCode}`);
   }
 
-  if (statusCode >= 100 && statusCode <= 399) return 'INFO';
-  if (statusCode >= 400 && statusCode <= 499) return 'WARN';
-  if (statusCode >= 500 && statusCode <= 599) return 'ERROR';
+  if (statusCode >= 100 && statusCode <= 399) return "INFO";
+  if (statusCode >= 400 && statusCode <= 499) return "WARN";
+  if (statusCode >= 500 && statusCode <= 599) return "ERROR";
 
-  throw new TypeError(`statusCode fora do intervalo válido (100-599): ${statusCode}`);
+  throw new TypeError(
+    `statusCode fora do intervalo válido (100-599): ${statusCode}`,
+  );
 }
 
 module.exports = { classify };
@@ -725,34 +731,34 @@ module.exports = { classify };
 
 ## 4.1 O que o MVP Inclui
 
-| Funcionalidade | Incluído | Versão |
-|----------------|----------|--------|
-| Middleware Express (intercepção) | ✅ | 1.0 |
-| Extração de dados da requisição | ✅ | 1.0 |
-| Entidade AuditLog com validação básica | ✅ | 1.0 |
-| Classificação de severidade | ✅ | 1.0 |
-| Persistência direta no PostgreSQL (sem batch) | ✅ | 1.0 |
-| Auto-migração da tabela (sem partições) | ✅ | 1.0 |
-| Fire-and-forget no middleware | ✅ | 1.0 |
-| Facade pública (`Audit.initialize`, `Audit.expressMiddleware`) | ✅ | 1.0 |
-| JSDoc em todos os arquivos | ✅ | 1.0 |
-| Testes unitários básicos | ✅ | 1.0 |
+| Funcionalidade                                                 | Incluído | Versão |
+| -------------------------------------------------------------- | -------- | ------ |
+| Middleware Express (intercepção)                               | ✅       | 1.0    |
+| Extração de dados da requisição                                | ✅       | 1.0    |
+| Entidade AuditLog com validação básica                         | ✅       | 1.0    |
+| Classificação de severidade                                    | ✅       | 1.0    |
+| Persistência direta no PostgreSQL (sem batch)                  | ✅       | 1.0    |
+| Auto-migração da tabela (sem partições)                        | ✅       | 1.0    |
+| Fire-and-forget no middleware                                  | ✅       | 1.0    |
+| Facade pública (`Audit.initialize`, `Audit.expressMiddleware`) | ✅       | 1.0    |
+| JSDoc em todos os arquivos                                     | ✅       | 1.0    |
+| Testes unitários básicos                                       | ✅       | 1.0    |
 
 ---
 
 ## 4.2 O que o MVP NÃO Inclui (Próximas Versões)
 
-| Funcionalidade | Versão |
-|----------------|--------|
-| Buffer e batch insert | 1.1 |
-| Fallback para arquivo JSON | 1.2 |
-| Sanitização de dados sensíveis | 1.3 |
-| Particionamento PostgreSQL | 1.3 |
-| Middleware Fastify | 1.3 |
-| Agregação diária e mensal | 2.0 |
-| Detecção de anomalias | 2.0 |
-| Retenção automática de partições | 3.0 |
-| Graceful shutdown completo | 3.0 |
+| Funcionalidade                   | Versão |
+| -------------------------------- | ------ |
+| Buffer e batch insert            | 1.1    |
+| Fallback para arquivo JSON       | 1.2    |
+| Sanitização de dados sensíveis   | 1.3    |
+| Particionamento PostgreSQL       | 1.3    |
+| Middleware Fastify               | 1.3    |
+| Agregação diária e mensal        | 2.0    |
+| Detecção de anomalias            | 2.0    |
+| Retenção automática de partições | 3.0    |
+| Graceful shutdown completo       | 3.0    |
 
 ---
 
@@ -767,11 +773,13 @@ npm install winston   # Logger estruturado (não use console.log em lib)
 ```
 
 **Por que `pg` e não `pg-promise` ou `knex`?**
+
 - `pg` é o driver oficial, sem abstração desnecessária
 - Queries parametrizadas nativas (prevenção de SQL injection)
 - A spec-v4 menciona explicitamente "parameterized queries"
 
 **Por que `winston` para logging interno da lib?**
+
 - Uma lib **não deve usar `console.log`** — ela não sabe para onde o output vai
 - Winston permite que o consumidor configure o destino dos logs
 - Separação entre "logs de auditoria" (o produto) e "logs da lib" (infraestrutura)
@@ -783,6 +791,7 @@ npm install winston   # Logger estruturado (não use console.log em lib)
 ### PASSO 1: Exceptions
 
 **O que você precisa saber:**
+
 - Como criar classes de erro customizadas em JavaScript
 - Por que `Error.captureStackTrace` é importante para debugging
 
@@ -794,7 +803,7 @@ npm install winston   # Logger estruturado (não use console.log em lib)
  * @module InvalidAuditLogError
  */
 
-'use strict';
+"use strict";
 
 /**
  * Erro de domínio para AuditLog com dados inválidos.
@@ -816,7 +825,7 @@ class InvalidAuditLogError extends Error {
     super(message);
 
     /** @type {string} Nome da classe de erro */
-    this.name = 'InvalidAuditLogError';
+    this.name = "InvalidAuditLogError";
 
     /** @type {Object} Contexto adicional do erro */
     this.context = context;
@@ -836,6 +845,7 @@ module.exports = { InvalidAuditLogError };
 ### PASSO 2: Domain Services
 
 **O que você precisa saber:**
+
 - Services de domínio são funções puras (input → output, sem side effects)
 - Não acessam banco, não fazem HTTP, não escrevem arquivos
 
@@ -849,7 +859,7 @@ module.exports = { InvalidAuditLogError };
  * @module SeverityClassifier
  */
 
-'use strict';
+"use strict";
 
 /**
  * @typedef {'INFO'|'WARN'|'ERROR'} Severity
@@ -863,9 +873,9 @@ module.exports = { InvalidAuditLogError };
  * @private
  */
 const SEVERITY_RANGES = [
-  { min: 100, max: 399, severity: 'INFO' },
-  { min: 400, max: 499, severity: 'WARN' },
-  { min: 500, max: 599, severity: 'ERROR' },
+  { min: 100, max: 399, severity: "INFO" },
+  { min: 400, max: 499, severity: "WARN" },
+  { min: 500, max: 599, severity: "ERROR" },
 ];
 
 /**
@@ -890,23 +900,25 @@ const SEVERITY_RANGES = [
  * classify(503);  // → 'ERROR'
  */
 function classify(statusCode) {
-  const { InvalidAuditLogError } = require('../exceptions/InvalidAuditLogError');
+  const {
+    InvalidAuditLogError,
+  } = require("../exceptions/InvalidAuditLogError");
 
   if (!Number.isInteger(statusCode)) {
-    throw new InvalidAuditLogError(
-      'statusCode deve ser um inteiro',
-      { received: statusCode, type: typeof statusCode }
-    );
+    throw new InvalidAuditLogError("statusCode deve ser um inteiro", {
+      received: statusCode,
+      type: typeof statusCode,
+    });
   }
 
   const range = SEVERITY_RANGES.find(
-    (r) => statusCode >= r.min && statusCode <= r.max
+    (r) => statusCode >= r.min && statusCode <= r.max,
   );
 
   if (!range) {
     throw new InvalidAuditLogError(
-      'statusCode fora do intervalo válido (100-599)',
-      { received: statusCode }
+      "statusCode fora do intervalo válido (100-599)",
+      { received: statusCode },
     );
   }
 
@@ -919,6 +931,7 @@ module.exports = { classify };
 #### `IpExtractor.js`
 
 **O que você precisa saber:**
+
 - Proxies reversos (nginx, AWS ALB) adicionam `X-Forwarded-For`
 - O IP real do cliente fica no **primeiro** da lista em `X-Forwarded-For`
 - `req.socket.remoteAddress` é o IP de quem se conectou (pode ser o proxy)
@@ -931,13 +944,13 @@ module.exports = { classify };
  * @module IpExtractor
  */
 
-'use strict';
+"use strict";
 
 /**
  * Fallback quando o IP não pode ser determinado.
  * @constant {string}
  */
-const UNKNOWN_IP = 'UNKNOWN';
+const UNKNOWN_IP = "UNKNOWN";
 
 /**
  * Extrai o endereço IP do cliente real de uma requisição HTTP.
@@ -961,22 +974,22 @@ const UNKNOWN_IP = 'UNKNOWN';
  */
 function extractIp(req) {
   // Prioridade 1: X-Forwarded-For (proxy chain)
-  const forwarded = req.headers?.['x-forwarded-for'];
-  if (forwarded && typeof forwarded === 'string') {
+  const forwarded = req.headers?.["x-forwarded-for"];
+  if (forwarded && typeof forwarded === "string") {
     // "203.0.113.42, 10.0.0.1" → ["203.0.113.42", "10.0.0.1"] → "203.0.113.42"
-    const firstIp = forwarded.split(',')[0].trim();
+    const firstIp = forwarded.split(",")[0].trim();
     if (firstIp) return firstIp;
   }
 
   // Prioridade 2: X-Real-IP (nginx)
-  const realIp = req.headers?.['x-real-ip'];
-  if (realIp && typeof realIp === 'string' && realIp.trim()) {
+  const realIp = req.headers?.["x-real-ip"];
+  if (realIp && typeof realIp === "string" && realIp.trim()) {
     return realIp.trim();
   }
 
   // Prioridade 3: Socket (conexão direta)
   const socketIp = req.socket?.remoteAddress;
-  if (socketIp && typeof socketIp === 'string' && socketIp.trim()) {
+  if (socketIp && typeof socketIp === "string" && socketIp.trim()) {
     return socketIp;
   }
 
@@ -997,9 +1010,9 @@ module.exports = { extractIp, UNKNOWN_IP };
  * @module AnonymousIdGenerator
  */
 
-'use strict';
+"use strict";
 
-const { createHash } = require('node:crypto');
+const { createHash } = require("node:crypto");
 
 /**
  * Gera um ID anônimo e determinístico combinando IP e User-Agent.
@@ -1023,10 +1036,8 @@ const { createHash } = require('node:crypto');
  * generate('UNKNOWN', '');
  * // → "5e884898..." (ainda funciona com fallbacks)
  */
-function generate(ip, userAgent = '') {
-  return createHash('sha256')
-    .update(`${ip}${userAgent}`)
-    .digest('hex');
+function generate(ip, userAgent = "") {
+  return createHash("sha256").update(`${ip}${userAgent}`).digest("hex");
 }
 
 module.exports = { generate };
@@ -1037,6 +1048,7 @@ module.exports = { generate };
 ### PASSO 3: Entidade AuditLog
 
 **O que você precisa saber:**
+
 - Entidades de domínio encapsulam **regras de negócio**, não apenas dados
 - O construtor deve **validar** e **derivar** campos automaticamente
 - `Object.freeze()` torna o objeto imutável (boas práticas em domínio)
@@ -1055,19 +1067,27 @@ module.exports = { generate };
  * @module AuditLog
  */
 
-'use strict';
+"use strict";
 
-const { randomUUID } = require('node:crypto');
-const { classify } = require('../services/SeverityClassifier');
-const { generate } = require('../services/AnonymousIdGenerator');
-const { InvalidAuditLogError } = require('../exceptions/InvalidAuditLogError');
+const { randomUUID } = require("node:crypto");
+const { classify } = require("../services/SeverityClassifier");
+const { generate } = require("../services/AnonymousIdGenerator");
+const { InvalidAuditLogError } = require("../exceptions/InvalidAuditLogError");
 
 /**
  * Métodos HTTP permitidos pela spec-v4.
  * @constant {Set<string>}
  * @private
  */
-const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']);
+const ALLOWED_METHODS = new Set([
+  "GET",
+  "POST",
+  "PUT",
+  "DELETE",
+  "PATCH",
+  "HEAD",
+  "OPTIONS",
+]);
 
 /**
  * Limite de tamanho da URL em bytes (spec-v4: 2048).
@@ -1154,9 +1174,10 @@ class AuditLog {
     this.statusCode = data.statusCode;
 
     /** @type {Date} Timestamp da requisição (UTC) */
-    this.timestamp = data.timestamp instanceof Date
-      ? data.timestamp
-      : new Date(data.timestamp);
+    this.timestamp =
+      data.timestamp instanceof Date
+        ? data.timestamp
+        : new Date(data.timestamp);
 
     // ── Campos auto-gerados ──────────────────────────────────────────────────
     /** @type {string} UUID v4 único por requisição */
@@ -1166,7 +1187,7 @@ class AuditLog {
     this.severity = classify(data.statusCode);
 
     /** @type {string} SHA256(ip + userAgent) para anonimização */
-    this.anonymous_id = generate(data.ip, data.user_agent ?? '');
+    this.anonymous_id = generate(data.ip, data.user_agent ?? "");
 
     // ── Campos opcionais ─────────────────────────────────────────────────────
     /** @type {string|undefined} ID do usuário autenticado */
@@ -1201,10 +1222,10 @@ class AuditLog {
    * @throws {InvalidAuditLogError}
    */
   _validateIp(ip) {
-    if (!ip || typeof ip !== 'string' || ip.trim().length === 0) {
+    if (!ip || typeof ip !== "string" || ip.trim().length === 0) {
       throw new InvalidAuditLogError(
-        'ip é obrigatório e deve ser uma string não-vazia',
-        { received: ip }
+        "ip é obrigatório e deve ser uma string não-vazia",
+        { received: ip },
       );
     }
   }
@@ -1216,16 +1237,16 @@ class AuditLog {
    * @throws {InvalidAuditLogError}
    */
   _validateUrl(url) {
-    if (!url || typeof url !== 'string' || url.trim().length === 0) {
-      throw new InvalidAuditLogError('url é obrigatória', { received: url });
+    if (!url || typeof url !== "string" || url.trim().length === 0) {
+      throw new InvalidAuditLogError("url é obrigatória", { received: url });
     }
 
-    const byteLength = Buffer.byteLength(url, 'utf8');
+    const byteLength = Buffer.byteLength(url, "utf8");
     if (byteLength > MAX_URL_BYTES) {
-      throw new InvalidAuditLogError(
-        `url excede ${MAX_URL_BYTES} bytes`,
-        { byteLength, url: url.substring(0, 50) + '...' }
-      );
+      throw new InvalidAuditLogError(`url excede ${MAX_URL_BYTES} bytes`, {
+        byteLength,
+        url: url.substring(0, 50) + "...",
+      });
     }
   }
 
@@ -1236,16 +1257,17 @@ class AuditLog {
    * @throws {InvalidAuditLogError}
    */
   _validateMethod(method) {
-    if (!method || typeof method !== 'string') {
-      throw new InvalidAuditLogError('method é obrigatório', { received: method });
+    if (!method || typeof method !== "string") {
+      throw new InvalidAuditLogError("method é obrigatório", {
+        received: method,
+      });
     }
 
     const upper = method.toUpperCase();
     if (!ALLOWED_METHODS.has(upper)) {
-      throw new InvalidAuditLogError(
-        `method inválido: ${method}`,
-        { allowed: [...ALLOWED_METHODS] }
-      );
+      throw new InvalidAuditLogError(`method inválido: ${method}`, {
+        allowed: [...ALLOWED_METHODS],
+      });
     }
   }
 
@@ -1257,13 +1279,15 @@ class AuditLog {
    */
   _validateTimestamp(timestamp) {
     if (!timestamp) {
-      throw new InvalidAuditLogError('timestamp é obrigatório');
+      throw new InvalidAuditLogError("timestamp é obrigatório");
     }
 
     const ts = timestamp instanceof Date ? timestamp : new Date(timestamp);
 
     if (isNaN(ts.getTime())) {
-      throw new InvalidAuditLogError('timestamp inválido', { received: timestamp });
+      throw new InvalidAuditLogError("timestamp inválido", {
+        received: timestamp,
+      });
     }
 
     const now = Date.now();
@@ -1271,16 +1295,15 @@ class AuditLog {
 
     if (diff > MAX_FUTURE_MS) {
       throw new InvalidAuditLogError(
-        'timestamp mais de 12h no futuro (possível erro de clock)',
-        { timestamp: ts.toISOString() }
+        "timestamp mais de 12h no futuro (possível erro de clock)",
+        { timestamp: ts.toISOString() },
       );
     }
 
     if (now - ts.getTime() > MAX_PAST_MS) {
-      throw new InvalidAuditLogError(
-        'timestamp mais de 31 dias no passado',
-        { timestamp: ts.toISOString() }
-      );
+      throw new InvalidAuditLogError("timestamp mais de 31 dias no passado", {
+        timestamp: ts.toISOString(),
+      });
     }
   }
 }
@@ -1293,6 +1316,7 @@ module.exports = { AuditLog };
 ### PASSO 4: Interface do Repositório (Port)
 
 **O que você precisa saber:**
+
 - Em JavaScript puro não existe `interface` como em TypeScript
 - Simulamos interfaces com classes que lançam erros nos métodos (documentação + runtime check)
 - Isso força implementações a sobrescrever os métodos obrigatórios
@@ -1315,7 +1339,7 @@ module.exports = { AuditLog };
  * @module IAuditLogRepository
  */
 
-'use strict';
+"use strict";
 
 /**
  * Interface abstrata para repositório de AuditLog.
@@ -1334,7 +1358,7 @@ class IAuditLogRepository {
    * @throws {Error} Sempre (não implementado na classe base)
    */
   async save(log) {
-    throw new Error('IAuditLogRepository.save() não implementado');
+    throw new Error("IAuditLogRepository.save() não implementado");
   }
 
   /**
@@ -1346,7 +1370,7 @@ class IAuditLogRepository {
    * @throws {Error} Sempre (não implementado na classe base)
    */
   async saveBatch(logs) {
-    throw new Error('IAuditLogRepository.saveBatch() não implementado');
+    throw new Error("IAuditLogRepository.saveBatch() não implementado");
   }
 
   /**
@@ -1356,7 +1380,7 @@ class IAuditLogRepository {
    * @returns {Promise<boolean>}
    */
   async isHealthy() {
-    throw new Error('IAuditLogRepository.isHealthy() não implementado');
+    throw new Error("IAuditLogRepository.isHealthy() não implementado");
   }
 
   /**
@@ -1366,7 +1390,7 @@ class IAuditLogRepository {
    * @returns {Promise<void>}
    */
   async close() {
-    throw new Error('IAuditLogRepository.close() não implementado');
+    throw new Error("IAuditLogRepository.close() não implementado");
   }
 }
 
@@ -1378,6 +1402,7 @@ module.exports = { IAuditLogRepository };
 ### PASSO 5: Infraestrutura — Conexão PostgreSQL
 
 **O que você precisa saber:**
+
 - `pg.Pool` gerencia um pool de conexões (não crie novas conexões por request!)
 - `pool.query()` pega uma conexão do pool, executa, devolve automaticamente
 - Queries parametrizadas (`$1, $2, ...`) previnem SQL injection — **sempre use!**
@@ -1397,9 +1422,9 @@ module.exports = { IAuditLogRepository };
  * @module PostgreSQLConnection
  */
 
-'use strict';
+"use strict";
 
-const { Pool } = require('pg');
+const { Pool } = require("pg");
 
 /**
  * @typedef {Object} DatabaseConfig
@@ -1457,7 +1482,7 @@ function initializePool(config) {
   });
 
   // Escuta erros do pool (conexões que caem em idle)
-  _pool.on('error', (err) => {
+  _pool.on("error", (err) => {
     process.stderr.write(`[audit-logger] Pool error: ${err.message}\n`);
   });
 
@@ -1474,7 +1499,7 @@ function initializePool(config) {
 function getPool() {
   if (!_pool) {
     throw new Error(
-      '[audit-logger] Pool não inicializado. Chame Audit.initialize() primeiro.'
+      "[audit-logger] Pool não inicializado. Chame Audit.initialize() primeiro.",
     );
   }
   return _pool;
@@ -1501,7 +1526,7 @@ async function closePool() {
 async function testConnection() {
   try {
     const pool = getPool();
-    const result = await pool.query('SELECT 1 AS ok');
+    const result = await pool.query("SELECT 1 AS ok");
     return result.rows[0].ok === 1;
   } catch {
     return false;
@@ -1516,6 +1541,7 @@ module.exports = { initializePool, getPool, closePool, testConnection };
 ### PASSO 6: Auto-migração da Tabela
 
 **O que você precisa saber:**
+
 - `CREATE TABLE IF NOT EXISTS` é idempotente — pode ser executado múltiplas vezes
 - Em produção, use migrations com Flyway ou Liquibase — aqui usamos auto-migration por simplicidade do MVP
 - `BIGSERIAL` é `BIGINT + SEQUENCE` — auto-increment para IDs grandes
@@ -1533,9 +1559,9 @@ module.exports = { initializePool, getPool, closePool, testConnection };
  * @module MigrationRunner
  */
 
-'use strict';
+"use strict";
 
-const { getPool } = require('./PostgreSQLConnection');
+const { getPool } = require("./PostgreSQLConnection");
 
 /**
  * SQL de criação da tabela principal (sem particionamento no MVP).
@@ -1624,6 +1650,7 @@ module.exports = { runMigrations };
 ### PASSO 7: Repositório PostgreSQL (MVP — Insert Direto)
 
 **O que você precisa saber:**
+
 - Queries parametrizadas: `$1, $2, $3...` são placeholders — `pg` substitui com segurança
 - `JSON.stringify(obj)` converte objeto para string JSON (necessário para JSONB via `pg`)
 - `pool.query(sql, values)` executa e devolve a conexão automaticamente
@@ -1641,10 +1668,12 @@ module.exports = { runMigrations };
  * @module AuditLogRepository
  */
 
-'use strict';
+"use strict";
 
-const { IAuditLogRepository } = require('../../application/ports/IAuditLogRepository');
-const { getPool } = require('./PostgreSQLConnection');
+const {
+  IAuditLogRepository,
+} = require("../../application/ports/IAuditLogRepository");
+const { getPool } = require("./PostgreSQLConnection");
 
 /**
  * SQL de insert de um único log.
@@ -1685,21 +1714,21 @@ class AuditLogRepository extends IAuditLogRepository {
     const pool = getPool();
 
     await pool.query(INSERT_SQL, [
-      log.request_id,                                    // $1  UUID
-      log.anonymous_id,                                  // $2  CHAR(64)
-      log.ip,                                            // $3  VARCHAR(45)
-      log.userId ?? null,                                // $4  VARCHAR(255)
-      log.url,                                           // $5  VARCHAR(2048)
-      log.method,                                        // $6  VARCHAR(10)
-      log.statusCode,                                    // $7  INTEGER
-      log.severity,                                      // $8  VARCHAR(10)
-      log.body ? JSON.stringify(log.body) : null,        // $9  JSONB
-      log.headers ? JSON.stringify(log.headers) : null,  // $10 JSONB
+      log.request_id, // $1  UUID
+      log.anonymous_id, // $2  CHAR(64)
+      log.ip, // $3  VARCHAR(45)
+      log.userId ?? null, // $4  VARCHAR(255)
+      log.url, // $5  VARCHAR(2048)
+      log.method, // $6  VARCHAR(10)
+      log.statusCode, // $7  INTEGER
+      log.severity, // $8  VARCHAR(10)
+      log.body ? JSON.stringify(log.body) : null, // $9  JSONB
+      log.headers ? JSON.stringify(log.headers) : null, // $10 JSONB
       log.response_body ? JSON.stringify(log.response_body) : null, // $11 JSONB
-      log.duration_ms ?? null,                           // $12 INTEGER
-      log.user_agent ?? null,                            // $13 VARCHAR(512)
-      log.schema_version,                                // $14 INTEGER
-      log.timestamp,                                     // $15 TIMESTAMP
+      log.duration_ms ?? null, // $12 INTEGER
+      log.user_agent ?? null, // $13 VARCHAR(512)
+      log.schema_version, // $14 INTEGER
+      log.timestamp, // $15 TIMESTAMP
     ]);
   }
 
@@ -1710,7 +1739,7 @@ class AuditLogRepository extends IAuditLogRepository {
   async isHealthy() {
     try {
       const pool = getPool();
-      await pool.query('SELECT 1');
+      await pool.query("SELECT 1");
       return true;
     } catch {
       return false;
@@ -1722,7 +1751,7 @@ class AuditLogRepository extends IAuditLogRepository {
    * @returns {Promise<void>}
    */
   async close() {
-    const { closePool } = require('./PostgreSQLConnection');
+    const { closePool } = require("./PostgreSQLConnection");
     await closePool();
   }
 }
@@ -1735,6 +1764,7 @@ module.exports = { AuditLogRepository };
 ### PASSO 8: Use Case — SaveAuditLogUseCase
 
 **O que você precisa saber:**
+
 - Use Cases orquestram o fluxo: recebe dados brutos → cria entidade → persiste
 - A camada de Application não deve conhecer detalhes de HTTP ou banco — apenas interfaces
 - `try/catch` aqui garante que erros não se propagam para o middleware
@@ -1751,9 +1781,9 @@ module.exports = { AuditLogRepository };
  * @module SaveAuditLogUseCase
  */
 
-'use strict';
+"use strict";
 
-const { AuditLog } = require('../../domain/entities/AuditLog');
+const { AuditLog } = require("../../domain/entities/AuditLog");
 
 /**
  * Caso de uso responsável por salvar um log de auditoria.
@@ -1798,7 +1828,7 @@ class SaveAuditLogUseCase {
     } catch (err) {
       // Log interno da lib — nunca propaga para o middleware
       process.stderr.write(
-        `[audit-logger] Falha ao salvar log: ${err.message}\n`
+        `[audit-logger] Falha ao salvar log: ${err.message}\n`,
       );
     }
   }
@@ -1812,6 +1842,7 @@ module.exports = { SaveAuditLogUseCase };
 ### PASSO 9: Extrator de Dados da Requisição
 
 **O que você precisa saber:**
+
 - `res.on('finish')` dispara **depois** que a resposta foi enviada ao cliente
 - `Date.now()` retorna milissegundos desde epoch — use para medir latência
 - Headers HTTP são case-insensitive — sempre normalize para lowercase
@@ -1828,9 +1859,9 @@ module.exports = { SaveAuditLogUseCase };
  * @module RequestDataExtractor
  */
 
-'use strict';
+"use strict";
 
-const { extractIp } = require('../../domain/services/IpExtractor');
+const { extractIp } = require("../../domain/services/IpExtractor");
 
 /**
  * Headers que devem ser capturados (whitelist da spec-v4).
@@ -1839,18 +1870,18 @@ const { extractIp } = require('../../domain/services/IpExtractor');
  * @private
  */
 const ALLOWED_HEADERS = new Set([
-  'user-agent',
-  'accept',
-  'accept-language',
-  'accept-encoding',
-  'content-type',
-  'content-length',
-  'x-request-id',
-  'x-correlation-id',
-  'x-forwarded-for',
-  'x-real-ip',
-  'origin',
-  'referer',
+  "user-agent",
+  "accept",
+  "accept-language",
+  "accept-encoding",
+  "content-type",
+  "content-length",
+  "x-request-id",
+  "x-correlation-id",
+  "x-forwarded-for",
+  "x-real-ip",
+  "origin",
+  "referer",
 ]);
 
 /**
@@ -1858,7 +1889,7 @@ const ALLOWED_HEADERS = new Set([
  * @constant {Set<string>}
  * @private
  */
-const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
 /**
  * Extrai e normaliza dados de uma requisição HTTP Express.
@@ -1869,25 +1900,23 @@ const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
  * @returns {Object} Dados normalizados para criar AuditLog
  */
 function extract(req, res, startTime) {
-  const method = (req.method ?? 'GET').toUpperCase();
+  const method = (req.method ?? "GET").toUpperCase();
   const duration_ms = Date.now() - startTime;
 
   // Filtra headers pela whitelist e normaliza para lowercase
   const headers = extractHeaders(req.headers);
 
   // Body apenas para métodos que o suportam e content-type JSON
-  const body = shouldCaptureBody(method, req)
-    ? req.body ?? null
-    : null;
+  const body = shouldCaptureBody(method, req) ? (req.body ?? null) : null;
 
   return {
     ip: extractIp(req),
-    url: req.originalUrl ?? req.url ?? '/',
+    url: req.originalUrl ?? req.url ?? "/",
     method,
     statusCode: res.statusCode ?? 200,
     timestamp: new Date(startTime), // UTC implícito em Node.js
     duration_ms,
-    user_agent: req.headers?.['user-agent'],
+    user_agent: req.headers?.["user-agent"],
     headers: Object.keys(headers).length > 0 ? headers : null,
     body,
     // userId: injetado pelo middleware de autenticação da aplicação
@@ -1905,7 +1934,7 @@ function extract(req, res, startTime) {
  * @private
  */
 function extractHeaders(rawHeaders) {
-  if (!rawHeaders || typeof rawHeaders !== 'object') return {};
+  if (!rawHeaders || typeof rawHeaders !== "object") return {};
 
   return Object.entries(rawHeaders).reduce((acc, [key, value]) => {
     const normalized = key.toLowerCase();
@@ -1928,8 +1957,8 @@ function extractHeaders(rawHeaders) {
 function shouldCaptureBody(method, req) {
   if (!BODY_METHODS.has(method)) return false;
 
-  const contentType = req.headers?.['content-type'] ?? '';
-  return contentType.includes('application/json');
+  const contentType = req.headers?.["content-type"] ?? "";
+  return contentType.includes("application/json");
 }
 
 /**
@@ -1946,10 +1975,12 @@ function shouldCaptureBody(method, req) {
  * @private
  */
 function extractUserId(req) {
-  return req.headers?.['x-user-id']
-    ?? req.user?.id
-    ?? req.locals?.userId
-    ?? undefined;
+  return (
+    req.headers?.["x-user-id"] ??
+    req.user?.id ??
+    req.locals?.userId ??
+    undefined
+  );
 }
 
 module.exports = { extract };
@@ -1960,6 +1991,7 @@ module.exports = { extract };
 ### PASSO 10: Middleware Express
 
 **O que você precisa saber:**
+
 - Middleware Express tem assinatura `(req, res, next)` — sempre chame `next()`
 - `res.on('finish')` é o hook do Node.js HTTP que dispara após response enviada
 - `_startTime` com underscore é convenção para propriedades "internas" adicionadas ao req
@@ -1982,10 +2014,10 @@ module.exports = { extract };
  * @module ExpressMiddleware
  */
 
-'use strict';
+"use strict";
 
-const { randomUUID } = require('node:crypto');
-const { extract } = require('../extractors/RequestDataExtractor');
+const { randomUUID } = require("node:crypto");
+const { extract } = require("../extractors/RequestDataExtractor");
 
 /**
  * Cria o middleware Express de auditoria.
@@ -2026,21 +2058,23 @@ function createExpressMiddleware(useCase, options = {}) {
     req._startTime = Date.now();
 
     // Usa X-Request-ID do header se disponível, senão gera novo UUID
-    req._auditRequestId = req.headers['x-request-id'] ?? randomUUID();
+    req._auditRequestId = req.headers["x-request-id"] ?? randomUUID();
 
     // Injeta o request ID na resposta (facilita correlação client-side)
-    res.setHeader('X-Request-ID', req._auditRequestId);
+    res.setHeader("X-Request-ID", req._auditRequestId);
 
     // Escuta o evento 'finish' — dispara quando res.end() é chamado
     // IMPORTANTE: neste ponto, o cliente JÁ recebeu a resposta
-    res.on('finish', () => {
+    res.on("finish", () => {
       // Extrai os dados APÓS a resposta (temos status_code, duration_ms etc.)
       const rawData = extract(req, res, req._startTime);
 
       // FIRE-AND-FORGET: não usamos await — não bloqueia nada
       // O .catch() é obrigatório para evitar UnhandledPromiseRejection
       useCase.execute(rawData).catch((err) => {
-        process.stderr.write(`[audit-logger] Middleware error: ${err.message}\n`);
+        process.stderr.write(
+          `[audit-logger] Middleware error: ${err.message}\n`,
+        );
       });
     });
 
@@ -2058,6 +2092,7 @@ module.exports = { createExpressMiddleware };
 ### PASSO 11: Facade Pública — `index.js`
 
 **O que você precisa saber:**
+
 - **Facade Pattern:** Um único ponto de entrada que esconde a complexidade interna
 - Consumidores do pacote (`@internal/audit-logger`) devem precisar de apenas 3 linhas para usar
 - `Audit.initialize()` monta toda a injeção de dependência internamente
@@ -2266,6 +2301,7 @@ module.exports = { Audit };
 ## 4.5 Testes do MVP
 
 **O que você precisa saber:**
+
 - **Vitest** é compatível com Jest (mesma API) mas mais rápido e moderno
 - `describe` agrupa testes relacionados
 - `it` (ou `test`) define um caso de teste
@@ -2275,109 +2311,119 @@ module.exports = { Audit };
 ```javascript
 // packages/audit-logger/src/domain/entities/AuditLog.test.js
 
-import { describe, it, expect } from 'vitest';
-import { AuditLog } from './AuditLog.js';
-import { InvalidAuditLogError } from '../exceptions/InvalidAuditLogError.js';
+import { describe, it, expect } from "vitest";
+import { AuditLog } from "./AuditLog.js";
+import { InvalidAuditLogError } from "../exceptions/InvalidAuditLogError.js";
 
-describe('AuditLog Entity', () => {
+describe("AuditLog Entity", () => {
   const validData = {
-    ip: '203.0.113.42',
-    url: '/api/users',
-    method: 'GET',
+    ip: "203.0.113.42",
+    url: "/api/users",
+    method: "GET",
     statusCode: 200,
     timestamp: new Date(),
   };
 
-  describe('Criação válida', () => {
-    it('deve criar AuditLog com campos obrigatórios', () => {
+  describe("Criação válida", () => {
+    it("deve criar AuditLog com campos obrigatórios", () => {
       const log = new AuditLog(validData);
-      expect(log.ip).toBe('203.0.113.42');
-      expect(log.url).toBe('/api/users');
-      expect(log.method).toBe('GET');
+      expect(log.ip).toBe("203.0.113.42");
+      expect(log.url).toBe("/api/users");
+      expect(log.method).toBe("GET");
       expect(log.statusCode).toBe(200);
     });
 
-    it('deve derivar severity=INFO para status 200', () => {
+    it("deve derivar severity=INFO para status 200", () => {
       const log = new AuditLog({ ...validData, statusCode: 200 });
-      expect(log.severity).toBe('INFO');
+      expect(log.severity).toBe("INFO");
     });
 
-    it('deve derivar severity=WARN para status 404', () => {
+    it("deve derivar severity=WARN para status 404", () => {
       const log = new AuditLog({ ...validData, statusCode: 404 });
-      expect(log.severity).toBe('WARN');
+      expect(log.severity).toBe("WARN");
     });
 
-    it('deve derivar severity=ERROR para status 500', () => {
+    it("deve derivar severity=ERROR para status 500", () => {
       const log = new AuditLog({ ...validData, statusCode: 500 });
-      expect(log.severity).toBe('ERROR');
+      expect(log.severity).toBe("ERROR");
     });
 
-    it('deve auto-gerar request_id UUID se não fornecido', () => {
+    it("deve auto-gerar request_id UUID se não fornecido", () => {
       const log = new AuditLog(validData);
       expect(log.request_id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
       );
     });
 
-    it('deve usar request_id fornecido se presente', () => {
-      const customId = '550e8400-e29b-41d4-a716-446655440000';
+    it("deve usar request_id fornecido se presente", () => {
+      const customId = "550e8400-e29b-41d4-a716-446655440000";
       const log = new AuditLog({ ...validData, request_id: customId });
       expect(log.request_id).toBe(customId);
     });
 
-    it('deve gerar anonymous_id como string de 64 chars', () => {
+    it("deve gerar anonymous_id como string de 64 chars", () => {
       const log = new AuditLog(validData);
       expect(log.anonymous_id).toHaveLength(64);
       expect(log.anonymous_id).toMatch(/^[a-f0-9]{64}$/);
     });
 
-    it('deve ser imutável (Object.freeze)', () => {
+    it("deve ser imutável (Object.freeze)", () => {
       const log = new AuditLog(validData);
-      expect(() => { log.ip = 'outro'; }).toThrow(TypeError);
+      expect(() => {
+        log.ip = "outro";
+      }).toThrow(TypeError);
     });
   });
 
-  describe('Validações obrigatórias', () => {
-    it('deve rejeitar ip vazio', () => {
-      expect(() => new AuditLog({ ...validData, ip: '' }))
-        .toThrow(InvalidAuditLogError);
+  describe("Validações obrigatórias", () => {
+    it("deve rejeitar ip vazio", () => {
+      expect(() => new AuditLog({ ...validData, ip: "" })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar ip null', () => {
-      expect(() => new AuditLog({ ...validData, ip: null }))
-        .toThrow(InvalidAuditLogError);
+    it("deve rejeitar ip null", () => {
+      expect(() => new AuditLog({ ...validData, ip: null })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar statusCode float', () => {
-      expect(() => new AuditLog({ ...validData, statusCode: 200.5 }))
-        .toThrow(InvalidAuditLogError);
+    it("deve rejeitar statusCode float", () => {
+      expect(() => new AuditLog({ ...validData, statusCode: 200.5 })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar statusCode < 100', () => {
-      expect(() => new AuditLog({ ...validData, statusCode: 99 }))
-        .toThrow(InvalidAuditLogError);
+    it("deve rejeitar statusCode < 100", () => {
+      expect(() => new AuditLog({ ...validData, statusCode: 99 })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar statusCode > 599', () => {
-      expect(() => new AuditLog({ ...validData, statusCode: 600 }))
-        .toThrow(InvalidAuditLogError);
+    it("deve rejeitar statusCode > 599", () => {
+      expect(() => new AuditLog({ ...validData, statusCode: 600 })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar timestamp muito no futuro (> 12h)', () => {
+    it("deve rejeitar timestamp muito no futuro (> 12h)", () => {
       const future = new Date(Date.now() + 13 * 60 * 60 * 1000);
-      expect(() => new AuditLog({ ...validData, timestamp: future }))
-        .toThrow(InvalidAuditLogError);
+      expect(() => new AuditLog({ ...validData, timestamp: future })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar timestamp muito antigo (> 31 dias)', () => {
+    it("deve rejeitar timestamp muito antigo (> 31 dias)", () => {
       const old = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000);
-      expect(() => new AuditLog({ ...validData, timestamp: old }))
-        .toThrow(InvalidAuditLogError);
+      expect(() => new AuditLog({ ...validData, timestamp: old })).toThrow(
+        InvalidAuditLogError,
+      );
     });
 
-    it('deve rejeitar method inválido', () => {
-      expect(() => new AuditLog({ ...validData, method: 'INVALID' }))
-        .toThrow(InvalidAuditLogError);
+    it("deve rejeitar method inválido", () => {
+      expect(() => new AuditLog({ ...validData, method: "INVALID" })).toThrow(
+        InvalidAuditLogError,
+      );
     });
   });
 });
@@ -2394,6 +2440,7 @@ describe('AuditLog Entity', () => {
 ## 5.1 O que Muda na v1.1
 
 **O que você precisa saber antes desta versão:**
+
 - `EventEmitter` (já coberto na seção 1.3)
 - `setInterval` vs `setTimeout`: interval repete, timeout é once
 - `clearInterval` para cancelar timers (fundamental no graceful shutdown)
@@ -2435,9 +2482,9 @@ Batch INSERT (500 por vez):
  * @module AuditBuffer
  */
 
-'use strict';
+"use strict";
 
-const EventEmitter = require('node:events');
+const EventEmitter = require("node:events");
 
 /**
  * Buffer FIFO para logs de auditoria com flush automático.
@@ -2478,7 +2525,7 @@ class AuditBuffer extends EventEmitter {
     this._maxPending = options.maxPending ?? 10000;
 
     /** @private @type {'drop'|'reject'} */
-    this._overflowBehavior = options.overflowBehavior ?? 'drop';
+    this._overflowBehavior = options.overflowBehavior ?? "drop";
 
     /**
      * Array interno de logs aguardando flush.
@@ -2509,7 +2556,7 @@ class AuditBuffer extends EventEmitter {
 
     // Overflow: buffer com mais de maxPending logs
     if (this._items.length >= this._maxPending) {
-      if (this._overflowBehavior === 'reject') {
+      if (this._overflowBehavior === "reject") {
         return false; // Descarta o novo log
       }
       // 'drop': remove o mais antigo para aceitar o novo
@@ -2569,7 +2616,7 @@ class AuditBuffer extends EventEmitter {
     const batch = this._items.splice(0);
 
     // Emite o evento com o batch (listeners processam de forma assíncrona)
-    this.emit('flush', batch);
+    this.emit("flush", batch);
 
     return batch;
   }
@@ -2626,7 +2673,7 @@ module.exports = { AuditBuffer };
  * @module BatchWorker
  */
 
-'use strict';
+"use strict";
 
 /**
  * Worker de processamento de batches de auditoria.
@@ -2698,7 +2745,7 @@ class BatchWorker {
         await this._primary.saveBatch(batch);
       } catch (secondError) {
         process.stderr.write(
-          `[audit-logger] Batch insert falhou após retry: ${secondError.message}\n`
+          `[audit-logger] Batch insert falhou após retry: ${secondError.message}\n`,
         );
 
         // Ativa modo fallback permanente
@@ -2718,7 +2765,7 @@ class BatchWorker {
   async _saveFallback(batch) {
     if (!this._fallback) {
       process.stderr.write(
-        `[audit-logger] Fallback não configurado. ${batch.length} logs perdidos.\n`
+        `[audit-logger] Fallback não configurado. ${batch.length} logs perdidos.\n`,
       );
       return;
     }
@@ -2727,7 +2774,7 @@ class BatchWorker {
       await this._fallback.saveBatch(batch);
     } catch (err) {
       process.stderr.write(
-        `[audit-logger] Fallback também falhou: ${err.message}. ${batch.length} logs perdidos.\n`
+        `[audit-logger] Fallback também falhou: ${err.message}. ${batch.length} logs perdidos.\n`,
       );
     }
   }
@@ -2852,6 +2899,7 @@ async execute(rawData) {
 ## 6.1 O que Você Precisa Saber
 
 **JSON Lines (NDJSON — Newline Delimited JSON):**
+
 - Um JSON por linha — cada linha é um objeto JSON válido completo
 - Eficiente para append (não precisa reescrever o arquivo inteiro)
 - Fácil de processar linha por linha com `readline` do Node.js
@@ -2863,6 +2911,7 @@ async execute(rawData) {
 ```
 
 **`fs.appendFileSync` vs `fs.appendFile`:**
+
 - `Sync` bloqueia o event loop — **evite em código de alta frequência**
 - Para fallback (cenário degradado), `appendFile` assíncrono é preferível
 - Use `fs/promises` para API baseada em Promise no Node.js 20+
@@ -2887,11 +2936,13 @@ async execute(rawData) {
  * @module FallbackRepository
  */
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { IAuditLogRepository } = require('../../application/ports/IAuditLogRepository');
+const fs = require("node:fs");
+const path = require("node:path");
+const {
+  IAuditLogRepository,
+} = require("../../application/ports/IAuditLogRepository");
 
 /**
  * Repositório de fallback para arquivo JSON Lines.
@@ -2909,7 +2960,7 @@ class FallbackRepository extends IAuditLogRepository {
     super();
 
     /** @private */
-    this._logDir = options.logDir ?? process.env.LOG_DIR ?? 'logs';
+    this._logDir = options.logDir ?? process.env.LOG_DIR ?? "logs";
 
     /** @private */
     this._maxSizeBytes = options.maxSizeBytes ?? 104857600;
@@ -2944,17 +2995,17 @@ class FallbackRepository extends IAuditLogRepository {
     this._checkRotation();
 
     const filePath = this._getCurrentFilePath();
-    const lines = logs.map((log) => JSON.stringify(log)).join('\n') + '\n';
+    const lines = logs.map((log) => JSON.stringify(log)).join("\n") + "\n";
 
     try {
-      await fs.promises.appendFile(filePath, lines, 'utf8');
+      await fs.promises.appendFile(filePath, lines, "utf8");
     } catch (err) {
       // Último recurso: stderr
       process.stderr.write(
-        `[audit-logger] Fallback write failed: ${err.message}\n`
+        `[audit-logger] Fallback write failed: ${err.message}\n`,
       );
       process.stderr.write(
-        `[audit-logger] Logs perdidos: ${logs.length} registros\n`
+        `[audit-logger] Logs perdidos: ${logs.length} registros\n`,
       );
     }
   }
@@ -3013,7 +3064,7 @@ class FallbackRepository extends IAuditLogRepository {
       const stat = fs.statSync(filePath);
       if (stat.size >= this._maxSizeBytes) {
         // Renomeia com sufixo de timestamp para não perder dados
-        const rotated = filePath.replace('.jsonl', `.${Date.now()}.jsonl`);
+        const rotated = filePath.replace(".jsonl", `.${Date.now()}.jsonl`);
         fs.renameSync(filePath, rotated);
       }
     } catch {
@@ -3044,11 +3095,13 @@ module.exports = { FallbackRepository };
 ## 7.1 O que Você Precisa Saber
 
 **Deep Clone vs Shallow Clone:**
+
 - Shallow clone (`{ ...obj }`) copia apenas o primeiro nível — sub-objetos ainda são referências
 - Deep clone (`structuredClone(obj)`) copia toda a árvore de objetos — nenhuma referência compartilhada
 - **NUNCA modifique o objeto original** — o body da requisição pode ser usado por outros middlewares
 
 **Mascaramento recursivo:**
+
 - O objeto pode ter qualquer profundidade: `{ user: { credentials: { password: "..." } } }`
 - Todos os níveis devem ser verificados
 - Arrays também devem ser verificados (cada item pode ser um objeto com dados sensíveis)
@@ -3072,13 +3125,13 @@ module.exports = { FallbackRepository };
  * @module DataSanitizer
  */
 
-'use strict';
+"use strict";
 
 /**
  * Valor usado para mascarar campos sensíveis.
  * @constant {string}
  */
-const MASK_VALUE = '********';
+const MASK_VALUE = "********";
 
 /**
  * Lista de campos sensíveis que devem ser mascarados (case-insensitive).
@@ -3088,17 +3141,33 @@ const MASK_VALUE = '********';
  * @private
  */
 const DEFAULT_SENSITIVE_FIELDS = new Set([
-  'password', 'senha', 'pass',
-  'token', 'accesstoken', 'refreshtoken',
-  'apikey', 'api_key', 'apitoken',
-  'secret', 'clientsecret', 'client_secret',
-  'authorization', 'auth',
-  'credential', 'credentials',
-  'cvv', 'cvc',
-  'ssn', 'cpf', 'cnpj',
-  'bank_account', 'bankaccount',
-  'credit_card', 'creditcard',
-  'private_key', 'privatekey',
+  "password",
+  "senha",
+  "pass",
+  "token",
+  "accesstoken",
+  "refreshtoken",
+  "apikey",
+  "api_key",
+  "apitoken",
+  "secret",
+  "clientsecret",
+  "client_secret",
+  "authorization",
+  "auth",
+  "credential",
+  "credentials",
+  "cvv",
+  "cvc",
+  "ssn",
+  "cpf",
+  "cnpj",
+  "bank_account",
+  "bankaccount",
+  "credit_card",
+  "creditcard",
+  "private_key",
+  "privatekey",
 ]);
 
 /**
@@ -3107,9 +3176,9 @@ const DEFAULT_SENSITIVE_FIELDS = new Set([
  * @private
  */
 function buildSensitiveFields() {
-  const custom = process.env.AUDIT_SENSITIVE_FIELDS ?? '';
+  const custom = process.env.AUDIT_SENSITIVE_FIELDS ?? "";
   const customFields = custom
-    .split(',')
+    .split(",")
     .map((f) => f.trim().toLowerCase())
     .filter(Boolean);
 
@@ -3139,7 +3208,7 @@ const SENSITIVE_FIELDS = buildSensitiveFields();
  */
 function sanitize(obj) {
   if (obj === null || obj === undefined) return null;
-  if (typeof obj !== 'object') return obj;
+  if (typeof obj !== "object") return obj;
 
   // Deep clone: nenhuma referência ao objeto original
   const cloned = structuredClone(obj);
@@ -3157,7 +3226,7 @@ function sanitize(obj) {
  * @private
  */
 function maskRecursive(obj) {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj === null || typeof obj !== "object") return obj;
 
   if (Array.isArray(obj)) {
     // Percorre cada item do array
@@ -3169,7 +3238,7 @@ function maskRecursive(obj) {
     if (SENSITIVE_FIELDS.has(key.toLowerCase())) {
       // Mascara o campo sensível
       obj[key] = MASK_VALUE;
-    } else if (obj[key] !== null && typeof obj[key] === 'object') {
+    } else if (obj[key] !== null && typeof obj[key] === "object") {
       // Recursão para objetos aninhados
       obj[key] = maskRecursive(obj[key]);
     }
@@ -3203,9 +3272,9 @@ module.exports = { sanitize, MASK_VALUE };
  * @module PayloadTruncator
  */
 
-'use strict';
+"use strict";
 
-const { LIMITS } = require('./FieldLimitConstants');
+const { LIMITS } = require("./FieldLimitConstants");
 
 /**
  * Trunca uma string para não exceder o limite de bytes.
@@ -3220,14 +3289,14 @@ const { LIMITS } = require('./FieldLimitConstants');
  * truncateString('/api/short', 2048);            // → sem alteração
  */
 function truncateString(str, maxBytes) {
-  if (!str || typeof str !== 'string') return str;
+  if (!str || typeof str !== "string") return str;
 
-  if (Buffer.byteLength(str, 'utf8') <= maxBytes) {
+  if (Buffer.byteLength(str, "utf8") <= maxBytes) {
     return str; // Dentro do limite — sem alteração
   }
 
   // Trunca por bytes, respeitando caracteres multibyte UTF-8
-  return Buffer.from(str, 'utf8').slice(0, maxBytes).toString('utf8');
+  return Buffer.from(str, "utf8").slice(0, maxBytes).toString("utf8");
 }
 
 /**
@@ -3243,16 +3312,16 @@ function truncateString(str, maxBytes) {
  * truncatePayload(largeBody, 65536); // → null se > 64KB
  * truncatePayload(smallBody, 65536); // → smallBody (sem alteração)
  */
-function truncatePayload(obj, maxBytes, fieldName = 'payload') {
+function truncatePayload(obj, maxBytes, fieldName = "payload") {
   if (obj === null || obj === undefined) return null;
 
   const json = JSON.stringify(obj);
-  const byteSize = Buffer.byteLength(json, 'utf8');
+  const byteSize = Buffer.byteLength(json, "utf8");
 
   if (byteSize <= maxBytes) return obj;
 
   process.stderr.write(
-    `[audit-logger] ${fieldName} truncado: ${byteSize} bytes > ${maxBytes} limite\n`
+    `[audit-logger] ${fieldName} truncado: ${byteSize} bytes > ${maxBytes} limite\n`,
   );
 
   // Retorna null para indicar que o payload foi descartado por excesso de tamanho
@@ -3273,13 +3342,17 @@ function applyTruncations(rawData) {
       ? truncateString(rawData.url, LIMITS.URL_BYTES)
       : rawData.url,
     body: rawData.body
-      ? truncatePayload(rawData.body, LIMITS.BODY_BYTES, 'body')
+      ? truncatePayload(rawData.body, LIMITS.BODY_BYTES, "body")
       : rawData.body,
     headers: rawData.headers
-      ? truncatePayload(rawData.headers, LIMITS.HEADERS_BYTES, 'headers')
+      ? truncatePayload(rawData.headers, LIMITS.HEADERS_BYTES, "headers")
       : rawData.headers,
     response_body: rawData.response_body
-      ? truncatePayload(rawData.response_body, LIMITS.RESPONSE_BODY_BYTES, 'response_body')
+      ? truncatePayload(
+          rawData.response_body,
+          LIMITS.RESPONSE_BODY_BYTES,
+          "response_body",
+        )
       : rawData.response_body,
   };
 }
@@ -3292,6 +3365,7 @@ module.exports = { truncateString, truncatePayload, applyTruncations };
 ## 7.4 Particionamento PostgreSQL (v1.3)
 
 **O que você precisa saber:**
+
 - A tabela no MVP tem `PRIMARY KEY (id)` — para particionamento, muda para `PRIMARY KEY (id, timestamp)`
 - `PartitionManager` cria a partição de hoje e de amanhã (preemptivo)
 - `PARTITION BY RANGE (timestamp)` divide a tabela por intervalos de data
@@ -3315,9 +3389,9 @@ module.exports = { truncateString, truncatePayload, applyTruncations };
  * @module PartitionManager
  */
 
-'use strict';
+"use strict";
 
-const { getPool } = require('./PostgreSQLConnection');
+const { getPool } = require("./PostgreSQLConnection");
 
 /**
  * Gera o nome da partição para uma data.
@@ -3332,7 +3406,7 @@ const { getPool } = require('./PostgreSQLConnection');
  */
 function getPartitionName(date) {
   const iso = date.toISOString().substring(0, 10); // "2026-03-30"
-  return `audit_logs_${iso.replace(/-/g, '_')}`;
+  return `audit_logs_${iso.replace(/-/g, "_")}`;
 }
 
 /**
@@ -3405,9 +3479,7 @@ async function dropOldPartitions(retentionDays = 90) {
 
   for (const { tablename } of rows) {
     // Extrai a data do nome: audit_logs_2026_03_30 → 2026-03-30
-    const dateStr = tablename
-      .replace('audit_logs_', '')
-      .replace(/_/g, '-');
+    const dateStr = tablename.replace("audit_logs_", "").replace(/_/g, "-");
 
     const partitionDate = new Date(`${dateStr}T00:00:00Z`);
 
@@ -3420,7 +3492,11 @@ async function dropOldPartitions(retentionDays = 90) {
   return dropped;
 }
 
-module.exports = { createPartition, createCurrentPartitions, dropOldPartitions };
+module.exports = {
+  createPartition,
+  createCurrentPartitions,
+  dropOldPartitions,
+};
 ```
 
 ---
@@ -3434,12 +3510,14 @@ module.exports = { createPartition, createCurrentPartitions, dropOldPartitions }
 ## 8.1 O que Você Precisa Saber
 
 **Node.js sem cron nativo:**
+
 - Node.js não tem um cron scheduler embutido
 - Calcule o delay até o próximo 00:00 UTC com `setTimeout`
 - Ou use a lib `node-cron` (adiciona dependência)
 - Neste projeto: implementamos o scheduler manualmente com `setTimeout` recursivo
 
 **SQL Aggregation:**
+
 - `COUNT(*)`: total de registros
 - `COUNT(DISTINCT column)`: valores únicos
 - `AVG(column)`: média
@@ -3474,10 +3552,10 @@ module.exports = { createPartition, createCurrentPartitions, dropOldPartitions }
  * @module DailySummaryJob
  */
 
-'use strict';
+"use strict";
 
-const { getPool } = require('../database/PostgreSQLConnection');
-const { detectAnomalies } = require('./AnomalyDetector');
+const { getPool } = require("../database/PostgreSQLConnection");
+const { detectAnomalies } = require("./AnomalyDetector");
 
 /**
  * SQL que calcula as métricas agregadas do dia anterior.
@@ -3509,12 +3587,14 @@ async function run(targetDate) {
   const pool = getPool();
 
   // Data alvo: ontem (em UTC)
-  const yesterday = targetDate ?? (() => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 1);
-    d.setUTCHours(0, 0, 0, 0);
-    return d;
-  })();
+  const yesterday =
+    targetDate ??
+    (() => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - 1);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    })();
 
   const from = new Date(yesterday);
   from.setUTCHours(0, 0, 0, 0);
@@ -3532,7 +3612,8 @@ async function run(targetDate) {
     const insights = await detectAnomalies(from, to);
 
     // Persiste no daily_summary (idempotente via ON CONFLICT)
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO daily_summary (
         date, total_requests, avg_duration_ms, max_duration_ms,
         error_count, warn_count, unauthorized_count,
@@ -3549,21 +3630,24 @@ async function run(targetDate) {
         unique_users      = EXCLUDED.unique_users,
         insights          = EXCLUDED.insights,
         updated_at        = CURRENT_TIMESTAMP;
-    `, [
-      from.toISOString().substring(0, 10),
-      metrics.total_requests,
-      metrics.avg_duration_ms,
-      metrics.max_duration_ms,
-      metrics.error_count,
-      metrics.warn_count,
-      metrics.unauthorized_count,
-      metrics.unique_ips,
-      metrics.unique_users,
-      JSON.stringify(insights),
-    ]);
-
+    `,
+      [
+        from.toISOString().substring(0, 10),
+        metrics.total_requests,
+        metrics.avg_duration_ms,
+        metrics.max_duration_ms,
+        metrics.error_count,
+        metrics.warn_count,
+        metrics.unauthorized_count,
+        metrics.unique_ips,
+        metrics.unique_users,
+        JSON.stringify(insights),
+      ],
+    );
   } catch (err) {
-    process.stderr.write(`[audit-logger] DailySummaryJob failed: ${err.message}\n`);
+    process.stderr.write(
+      `[audit-logger] DailySummaryJob failed: ${err.message}\n`,
+    );
     // Não propaga o erro — falha no job não deve derrubar a aplicação
   }
 }
@@ -3608,7 +3692,7 @@ function schedule() {
         clearTimeout(timer);
         timer = null;
       }
-    }
+    },
   };
 }
 
@@ -3639,9 +3723,9 @@ module.exports = { run, schedule };
  * @module AnomalyDetector
  */
 
-'use strict';
+"use strict";
 
-const { getPool } = require('../database/PostgreSQLConnection');
+const { getPool } = require("../database/PostgreSQLConnection");
 
 /**
  * @typedef {Object} AnomalyInsights
@@ -3685,9 +3769,11 @@ async function detectAnomalies(from, to) {
  */
 async function detectBruteForce(from, to) {
   const pool = getPool();
-  const threshold = Number(process.env.AUDIT_ANOMALY_FORCEBRUTE_THRESHOLD) || 100;
+  const threshold =
+    Number(process.env.AUDIT_ANOMALY_FORCEBRUTE_THRESHOLD) || 100;
 
-  const { rows } = await pool.query(`
+  const { rows } = await pool.query(
+    `
     SELECT ip, COUNT(*) AS attempts
     FROM audit_logs
     WHERE timestamp >= $1
@@ -3696,7 +3782,9 @@ async function detectBruteForce(from, to) {
     GROUP BY ip
     HAVING COUNT(*) > $3
     ORDER BY attempts DESC;
-  `, [from, to, threshold]);
+  `,
+    [from, to, threshold],
+  );
 
   return rows.map((r) => r.ip);
 }
@@ -3712,9 +3800,11 @@ async function detectBruteForce(from, to) {
  */
 async function detectRateAbuse(from, to) {
   const pool = getPool();
-  const threshold = Number(process.env.AUDIT_ANOMALY_RATEABUSE_THRESHOLD) || 100;
+  const threshold =
+    Number(process.env.AUDIT_ANOMALY_RATEABUSE_THRESHOLD) || 100;
 
-  const { rows } = await pool.query(`
+  const { rows } = await pool.query(
+    `
     SELECT ip, MAX(req_per_minute) AS max_per_minute
     FROM (
       SELECT
@@ -3728,7 +3818,9 @@ async function detectRateAbuse(from, to) {
     GROUP BY ip
     HAVING MAX(req_per_minute) > $3
     ORDER BY max_per_minute DESC;
-  `, [from, to, threshold]);
+  `,
+    [from, to, threshold],
+  );
 
   return rows.map((r) => r.ip);
 }
@@ -3746,13 +3838,16 @@ async function detectErrorSpike(from, to) {
   const pct = Number(process.env.AUDIT_ANOMALY_ERRORSPIKE_PCT) || 30;
   const minCount = Number(process.env.AUDIT_ANOMALY_ERRORSPIKE_MIN_COUNT) || 50;
 
-  const { rows } = await pool.query(`
+  const { rows } = await pool.query(
+    `
     SELECT
       COUNT(*) AS total,
       COUNT(*) FILTER (WHERE status_code >= 500) AS errors
     FROM audit_logs
     WHERE timestamp >= $1 AND timestamp < $2;
-  `, [from, to]);
+  `,
+    [from, to],
+  );
 
   const { total, errors } = rows[0];
 
@@ -3775,15 +3870,15 @@ module.exports = { detectAnomalies };
 
 ## 9.1 O que a v3.0 Adiciona
 
-| Feature | Detalhes |
-|---------|---------|
-| Graceful Shutdown | 5 passos com timeouts, SIGTERM/SIGINT |
-| Middleware Fastify | Plugin nativo Fastify com `fastify.addHook` |
-| RetentionManager | `DROP PARTITION` automático (diariamente) |
-| MonthlySummaryJob | Agregação mensal no 1º dia de cada mês |
+| Feature             | Detalhes                                          |
+| ------------------- | ------------------------------------------------- |
+| Graceful Shutdown   | 5 passos com timeouts, SIGTERM/SIGINT             |
+| Middleware Fastify  | Plugin nativo Fastify com `fastify.addHook`       |
+| RetentionManager    | `DROP PARTITION` automático (diariamente)         |
+| MonthlySummaryJob   | Agregação mensal no 1º dia de cada mês            |
 | `Audit.getStatus()` | Health check completo (DB, fallback, buffer size) |
-| Winston Logger | Logging interno estruturado da lib |
-| Vitest Config | Coverage configurada para 85%+ |
+| Winston Logger      | Logging interno estruturado da lib                |
+| Vitest Config       | Coverage configurada para 85%+                    |
 
 ---
 
@@ -3879,10 +3974,10 @@ async shutdown(deps) {
  * @module FastifyMiddleware
  */
 
-'use strict';
+"use strict";
 
-const { randomUUID } = require('node:crypto');
-const { extract } = require('../extractors/RequestDataExtractor');
+const { randomUUID } = require("node:crypto");
+const { extract } = require("../extractors/RequestDataExtractor");
 
 /**
  * Plugin Fastify de auditoria.
@@ -3907,15 +4002,15 @@ async function auditPlugin(fastify, options) {
   if (!enabled) return;
 
   // Hook: executado no início de cada requisição
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook("onRequest", async (request) => {
     if (excludePaths.includes(request.url)) return;
 
     request._startTime = Date.now();
-    request._auditRequestId = request.headers['x-request-id'] ?? randomUUID();
+    request._auditRequestId = request.headers["x-request-id"] ?? randomUUID();
   });
 
   // Hook: executado após a resposta ser enviada
-  fastify.addHook('onResponse', async (request, reply) => {
+  fastify.addHook("onResponse", async (request, reply) => {
     if (excludePaths.includes(request.url)) return;
     if (!request._startTime) return;
 
@@ -3939,7 +4034,9 @@ async function auditPlugin(fastify, options) {
 
     // Fire-and-forget
     useCase.execute(rawData).catch((err) => {
-      process.stderr.write(`[audit-logger] Fastify hook error: ${err.message}\n`);
+      process.stderr.write(
+        `[audit-logger] Fastify hook error: ${err.message}\n`,
+      );
     });
   });
 }
@@ -3956,19 +4053,21 @@ module.exports = { auditPlugin };
 ## MVP (v1.0) — Checklist
 
 **Pré-requisitos de conhecimento:**
-- [ ] Event Loop do Node.js
-- [ ] `async/await` e Promises
-- [ ] `pg` (node-postgres) — Pool, queries parametrizadas
-- [ ] Clean Architecture — camadas e responsabilidades
-- [ ] Fire-and-forget pattern
-- [ ] JSDoc — `@param`, `@returns`, `@typedef`, `@class`
+
+- [x] Event Loop do Node.js
+- [x] `async/await` e Promises
+- [x] `pg` (node-postgres) — Pool, queries parametrizadas
+- [x] Clean Architecture — camadas e responsabilidades
+- [x] Fire-and-forget pattern
+- [x] JSDoc — `@param`, `@returns`, `@typedef`, `@class`
 
 **Entregáveis:**
-- [ ] `InvalidAuditLogError.js`
-- [ ] `SeverityClassifier.js` + testes
-- [ ] `IpExtractor.js` + testes
-- [ ] `AnonymousIdGenerator.js` + testes
-- [ ] `AuditLog.js` (entidade com todas as validações) + testes
+
+- [x] `InvalidAuditLogError.js`
+- [x] `SeverityClassifier.js` + testes
+- [x] `IpExtractor.js` + testes
+- [x] `AnonymousIdGenerator.js` + testes
+- [x] `AuditLog.js` (entidade com todas as validações) + testes
 - [ ] `IAuditLogRepository.js` (interface)
 - [ ] `PostgreSQLConnection.js` (singleton + pool)
 - [ ] `MigrationRunner.js` (auto-migration)
@@ -3985,12 +4084,14 @@ module.exports = { auditPlugin };
 ## v1.1 — Checklist (Buffer + Batch)
 
 **Pré-requisitos adicionais:**
+
 - [ ] `EventEmitter` — `.on()`, `.emit()`, `.once()`
 - [ ] `setInterval` + `clearInterval` + `.unref()`
 - [ ] Batch INSERT com `pg` (placeholders dinâmicos)
 - [ ] Observer Pattern
 
 **Entregáveis:**
+
 - [ ] `AuditBuffer.js` (FIFO, flush por volume e tempo, overflow) + testes
 - [ ] `BatchWorker.js` (retry único, ativação do fallback) + testes
 - [ ] `AuditLogRepository.saveBatch()` (batch INSERT)
@@ -4002,12 +4103,14 @@ module.exports = { auditPlugin };
 ## v1.2 — Checklist (Fallback + Resiliência)
 
 **Pré-requisitos adicionais:**
+
 - [ ] JSON Lines / NDJSON formato
 - [ ] `fs/promises` — `appendFile`, `stat`, `rename`, `mkdir`
 - [ ] Rotação de arquivos por tamanho e data
 - [ ] Comportamento quando banco está indisponível
 
 **Entregáveis:**
+
 - [ ] `FallbackRepository.js` (JSONL, rotação, stderr) + testes
 - [ ] Atualizar `index.js` — fallback na inicialização
 - [ ] Atualizar `BatchWorker.js` — ativa fallback permanente após 2ª falha
@@ -4018,12 +4121,14 @@ module.exports = { auditPlugin };
 ## v1.3 — Checklist (Sanitização + Segurança + Partições)
 
 **Pré-requisitos adicionais:**
+
 - [ ] `structuredClone()` vs shallow clone
 - [ ] `Buffer.byteLength()` para contagem em bytes (UTF-8)
 - [ ] PostgreSQL particionamento — conceito e SQL
 - [ ] Whitelist de headers HTTP
 
 **Entregáveis:**
+
 - [ ] `DataSanitizer.js` (recursivo, case-insensitive, structuredClone) + testes
 - [ ] `PayloadTruncator.js` (URL 2KB, body 64KB, headers 16KB) + testes
 - [ ] `FieldLimitConstants.js`
@@ -4038,12 +4143,14 @@ module.exports = { auditPlugin };
 ## v2.0 — Checklist (Agregação + Anomalias)
 
 **Pré-requisitos adicionais:**
+
 - [ ] SQL avançado: `COUNT(*) FILTER`, `GROUP BY`, `DATE_TRUNC`
 - [ ] `ON CONFLICT DO UPDATE` (upsert idempotente)
 - [ ] Scheduler com `setTimeout` recursivo
 - [ ] `Promise.all` para execução paralela
 
 **Entregáveis:**
+
 - [ ] Migration: tabelas `daily_summary` e `monthly_summary`
 - [ ] `DailySummaryJob.js` (00:00 UTC) + testes
 - [ ] `MonthlySummaryJob.js` (01:00 UTC, 1º do mês) + testes
@@ -4056,6 +4163,7 @@ module.exports = { auditPlugin };
 ## v3.0 — Checklist (Full Production)
 
 **Pré-requisitos adicionais:**
+
 - [ ] `Promise.race()` para timeouts
 - [ ] `process.on('SIGTERM')` e `process.on('SIGINT')`
 - [ ] Fastify hooks (`addHook`)
@@ -4063,6 +4171,7 @@ module.exports = { auditPlugin };
 - [ ] Vitest coverage configuration
 
 **Entregáveis:**
+
 - [ ] Graceful shutdown completo (5 passos, 15s max) + testes
 - [ ] `RetentionManager.js` (agendado diariamente) + testes
 - [ ] `WinstonLogger.js` + integração em todos os módulos
