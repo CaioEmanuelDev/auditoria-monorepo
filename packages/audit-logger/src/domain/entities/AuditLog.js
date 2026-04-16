@@ -23,12 +23,12 @@ const { InvalidAuditLogError } = require('../exceptions/InvalidAuditLogError');
  * @private
  */
 const ALLOWED_METHODS = new Set([
-    'GET', 
-    'POST', 
-    'PUT', 
-    'DELETE', 
-    'PATCH', 
-    'HEAD', 
+    'GET',
+    'POST',
+    'PUT',
+    'DELETE',
+    'PATCH',
+    'HEAD',
     'OPTIONS'
 ]);
 
@@ -46,7 +46,7 @@ const MAX_URL_BYTES = 2048;
  * @private
  */
 
-const MAX_PAST_MS = 31*24*60*60*1000;
+const MAX_PAST_MS = 31 * 24 * 60 * 60 * 1000;
 
 /**
  * Janela de tolerância para timestamps no futuro (12 horas em ms, clock skew).
@@ -54,7 +54,7 @@ const MAX_PAST_MS = 31*24*60*60*1000;
  * @private
  */
 
-const MAX_FUTURE_MS = 12*60*60*1000;
+const MAX_FUTURE_MS = 12 * 60 * 60 * 1000;
 
 /**
  * Representa um log de auditoria HTTP validado e imutável.
@@ -99,156 +99,156 @@ class AuditLog {
      * @throws {InvalidAuditLogError}
      */
     constructor(data) {
-    // ── Validações obrigatórias ──────────────────────────────────────────────
-    
-    this._validateIp(data.ip);
-    this._validateUrl(data.url);
-    this._validateMethod(data.method);
-    this._validateTimestamp(data.timestamp);
-    // statusCode é validado dentro de classify()
+        // ── Validações obrigatórias ──────────────────────────────────────────────
 
-    // ── Campos obrigatórios ──────────────────────────────────────────────────
-    /**@type {string} IP do cliente */
-    this.ip = data.ip;
+        this._validateIp(data.ip);
+        this._validateUrl(data.url);
+        this._validateMethod(data.method);
+        this._validateTimestamp(data.timestamp);
+        // statusCode é validado dentro de classify()
 
-    /**@type {string} URL da requisição */
-    this.url = data.url;
+        // ── Campos obrigatórios ──────────────────────────────────────────────────
+        /**@type {string} IP do cliente */
+        this.ip = data.ip;
 
-    /**@type {string} Método HTTP */
-    this.method = data.method.toUpperCase();
+        /**@type {string} URL da requisição */
+        this.url = data.url;
 
-    /**@type {number} Status HTTP */
-    this.statusCode = data.statusCode;
+        /**@type {string} Método HTTP */
+        this.method = data.method.toUpperCase();
 
-    /**@type {Date} Timestamp da requisição (UTC) */
-    this.timestamp = data.timestamp instanceof Date
-    ? data.timestamp
-    : new Date(data.timestamp);
+        /**@type {number} Status HTTP */
+        this.statusCode = data.statusCode;
 
-    // ── Campos auto-gerados ──────────────────────────────────────────────────
-    /**@type {string} UUID v4 único por requisição */
-    this.request_id = data.request_id ?? randomUUID();
+        /**@type {Date} Timestamp da requisição (UTC) */
+        this.timestamp = data.timestamp instanceof Date
+            ? data.timestamp
+            : new Date(data.timestamp);
 
-    /**@type {'INFO' | 'WARN' | 'ERROR'} Severidade derivada do statusCode */
-    this.severity = classify(this.statusCode);
+        // ── Campos auto-gerados ──────────────────────────────────────────────────
+        /**@type {string} UUID v4 único por requisição */
+        this.request_id = data.request_id ?? randomUUID();
 
-    
-    /**@type {string} SHA256(IP + userAgent) para anonimização */
-    this.anonymus_id = generate(data.ip, data.user_agent ?? '');
+        /**@type {'INFO' | 'WARN' | 'ERROR'} Severidade derivada do statusCode */
+        this.severity = classify(this.statusCode);
 
-     // ── Campos opcionais ─────────────────────────────────────────────────────
-     /**@type {string|undefined} ID do usuário autenticado */
-     this.userId = data.userId;
 
-     /**@type {Object|null|undefined} Body da requisição */
-     this.body = data.body ?? null;
+        /**@type {string} SHA256(IP + userAgent) para anonimização */
+        this.anonymous_id = generate(data.ip, data.user_agent ?? '');
 
-     /**@type {Object|null|undefined} Headers da requisição */
-     this.headers = data.headers ?? null;
+        // ── Campos opcionais ─────────────────────────────────────────────────────
+        /**@type {string|undefined} ID do usuário autenticado */
+        this.userId = data.userId;
 
-     /**@type {Object|null|undefined} Body da resposta */
-     this.response_body = data.response_body ?? null;
+        /**@type {Object|null|undefined} Body da requisição */
+        this.body = data.body ?? null;
 
-     /**@type {number|undefined} Latência em ms */
-     this.duration_ms = data.duration_ms;
+        /**@type {Object|null|undefined} Headers da requisição */
+        this.headers = data.headers ?? null;
 
-     /**@type {string|undefined} User-Agent */
-     this.user_agent = data.user_agent;
+        /**@type {Object|null|undefined} Body da resposta */
+        this.response_body = data.response_body ?? null;
 
-     /**@type {number} Versão do schema (default: 4) */
-     this.schema_version = data.schema_version ?? 4;
+        /**@type {number|undefined} Latência em ms */
+        this.duration_ms = data.duration_ms;
 
-     // Torna o objeto imutável --- logs não devem ser modificados após criação
-     Object.freeze(this);
-}
+        /**@type {string|undefined} User-Agent */
+        this.user_agent = data.user_agent;
 
-/**
- * Valida o campo IP.
- * @private
- * @param {*} ip
- * @throws {InvalidAuditLogError}
- */
-_validateIp(ip) {
-    if (!ip || typeof ip !== 'string' || ip.trim().length === 0) {
-        throw new InvalidAuditLogError(
-            'ip é obrigatório e deve ser uma string não vazia',
-            { received: ip }
-        )
-    }
-}
+        /**@type {number} Versão do schema (default: 4) */
+        this.schema_version = data.schema_version ?? 4;
 
-/**
- * Valida a URL (não vazia, max 2048 bytes).
- * @private
- * @param {*} url
- * @throws {InvalidAuditLogError}
- */
-_validateUrl(url) {
-    if (!url || typeof url !== 'string' || url.trim().length === 0) {
-        throw new InvalidAuditLogError('url é obrigatória', { received: url });
+        // Torna o objeto imutável --- logs não devem ser modificados após criação
+        Object.freeze(this);
     }
 
-    const byteLength = Buffer.byteLength(url, 'utf8');
-    if (byteLength > MAX_URL_BYTES) {
-        throw new InvalidAuditLogError(
-            `url excede ${MAX_URL_BYTES} bytes`,
-            { byteLength, url: url.substring(0, 50) + '...'}
-        );
-    }
-}
-
-/**
- * Valida o método HTTP contra a lista permitida.
- * @private
- * @param {*} method
- * @throws {InvalidAuditLogError}
- */
-_validateMethod(method) {
-    if(!method || typeof method !== 'string') {
-        throw new InvalidAuditLogError('method é obrigatório', { received: method });
-    }
-    const upper = method.toUpperCase();
-    if(!ALLOWED_METHODS.has(upper)) {
-        throw new InvalidAuditLogError(
-            `method inválido: ${method}`,
-            { allowed: [...ALLOWED_METHODS] }
-        )
-    }
-}
-/**
- * Valida o timestamp: deve ser Date válido, não muito no futuro e nem muito no passado.
- * @private
- * @param {*} timestamp
- * @throws {InvalidAuditLogError}
- */
-_validateTimestamp(timestamp) {
-    if (!timestamp) {
-        throw new InvalidAuditLogError('timestamp é obrigatório', { received: timestamp });
+    /**
+     * Valida o campo IP.
+     * @private
+     * @param {*} ip
+     * @throws {InvalidAuditLogError}
+     */
+    _validateIp(ip) {
+        if (!ip || typeof ip !== 'string' || ip.trim().length === 0) {
+            throw new InvalidAuditLogError(
+                'ip é obrigatório e deve ser uma string não vazia',
+                { received: ip }
+            )
+        }
     }
 
-    const ts = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    /**
+     * Valida a URL (não vazia, max 2048 bytes).
+     * @private
+     * @param {*} url
+     * @throws {InvalidAuditLogError}
+     */
+    _validateUrl(url) {
+        if (!url || typeof url !== 'string' || url.trim().length === 0) {
+            throw new InvalidAuditLogError('url é obrigatória', { received: url });
+        }
 
-    if(isNaN(ts.getTime())) {
-        throw new InvalidAuditLogError('timestamp inválido', { received: timestamp });
+        const byteLength = Buffer.byteLength(url, 'utf8');
+        if (byteLength > MAX_URL_BYTES) {
+            throw new InvalidAuditLogError(
+                `url excede ${MAX_URL_BYTES} bytes`,
+                { byteLength, url: url.substring(0, 50) + '...' }
+            );
+        }
     }
 
-    const now = Date.now();
-    const diff = ts.getTime() - now;
-
-    if(diff > MAX_FUTURE_MS) {
-        throw new InvalidAuditLogError(
-            'timestamp mais de 12h no futuro (possível erro de clock)',
-            { timestamp: ts.toISOString()}
-        );
+    /**
+     * Valida o método HTTP contra a lista permitida.
+     * @private
+     * @param {*} method
+     * @throws {InvalidAuditLogError}
+     */
+    _validateMethod(method) {
+        if (!method || typeof method !== 'string') {
+            throw new InvalidAuditLogError('method é obrigatório', { received: method });
+        }
+        const upper = method.toUpperCase();
+        if (!ALLOWED_METHODS.has(upper)) {
+            throw new InvalidAuditLogError(
+                `method inválido: ${method}`,
+                { allowed: [...ALLOWED_METHODS] }
+            )
+        }
     }
+    /**
+     * Valida o timestamp: deve ser Date válido, não muito no futuro e nem muito no passado.
+     * @private
+     * @param {*} timestamp
+     * @throws {InvalidAuditLogError}
+     */
+    _validateTimestamp(timestamp) {
+        if (!timestamp) {
+            throw new InvalidAuditLogError('timestamp é obrigatório', { received: timestamp });
+        }
 
-    if(now - ts.getTime() > MAX_PAST_MS) {
-        throw new InvalidAuditLogError(
-            'timestamp mais de 31 dias no passado',
-            { timestamp: ts.toISOString() }
-        );
+        const ts = timestamp instanceof Date ? timestamp : new Date(timestamp);
+
+        if (isNaN(ts.getTime())) {
+            throw new InvalidAuditLogError('timestamp inválido', { received: timestamp });
+        }
+
+        const now = Date.now();
+        const diff = ts.getTime() - now;
+
+        if (diff > MAX_FUTURE_MS) {
+            throw new InvalidAuditLogError(
+                'timestamp mais de 12h no futuro (possível erro de clock)',
+                { timestamp: ts.toISOString() }
+            );
+        }
+
+        if (now - ts.getTime() > MAX_PAST_MS) {
+            throw new InvalidAuditLogError(
+                'timestamp mais de 31 dias no passado',
+                { timestamp: ts.toISOString() }
+            );
+        }
     }
-}
 }
 
 
